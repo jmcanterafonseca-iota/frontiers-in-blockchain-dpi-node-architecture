@@ -1,0 +1,103 @@
+{
+    "type": "Create",
+    "object": {
+        "@context": "https://vocabulary.uncefact.org/unece-context-D23B.jsonld",
+        "type": "Consignment",
+        "identifier": "A44-5566",
+        "globalId": "6KEP051126254X",
+        "summaryDescription": "Fresh cut flowers",
+        "exporterParty": {
+            "type": "TradeParty",
+            "identifier": {
+                "@type": "https://ref.gs1.org/voc/OrganizationID_Type-CRN",
+                "@value": "P00011000"
+            }
+        },
+        "importerParty": {
+            "type": "TradeParty",
+            "identifier": {
+                "@type": "https://ref.gs1.org/voc/OrganizationID_Type-NL_KVK_NUMBER",
+                "@value": "12345678"
+            }
+        },
+        "includedConsignmentItem": [
+            {
+                "type": "ConsignmentItem",
+                "exportTypeCode": "0603.11"
+            }
+        ],
+        "originCountry": {
+            "countryId": "unece:CountryId#KE"
+        },
+        "destinationCountry": {
+            "countryId": "unece:CountryId#NL"
+        },
+        "packageQuantity": {
+            "type": "QuantityType",
+            "unece:QuantityTypeValue": 25
+        },
+        "weightUnitNetWeightMeasure": [
+            {
+                "type": "WeightUnitMeasureType",
+                "unece:WeightUnitMeasureTypeValue": "345",
+                "unece:WeightUnitMeasureTypeCode": "unece:WeightUnitMeasureCode#KGM"
+            }
+        ],
+        "atDepartureTransportMovement": {
+            "type": "TransportMovement",
+            "departureEvent": [
+                {
+                    "type": "TransportEvent",
+                    "occurrenceLogisticsLocation": {
+                        "type": "LogisticsLocation",
+                        "identifier": {
+                            "@type": "https://ref.gs1.org/voc/LocationID_Type-IATA_CODE",
+                            "@value": "NBO"
+                        }
+                    },
+                    "scheduledOccurrenceDateTime": "2026-05-8T19:00:00Z"
+                }
+            ],
+            "transportModeCode": "unece:TransportModeCodeList#4",
+            "carrierParty": {
+                "type": "TradeParty",
+                "name": "KLM"
+            },
+            "usedTransportMeans": {
+                "identifier": "KLM23456",
+                "transportMeansTypeCode": "unece:TransportMeansTypeCodeList#4000"
+            }
+        },
+        "atArrivalTransportMovement": {
+            "type": "TransportMovement",
+            "arrivalEvent": [
+                {
+                    "type": "TransportEvent",
+                    "occurrenceLogisticsLocation": {
+                        "type": "LogisticsLocation",
+                        "identifier": {
+                            "@type": "https://ref.gs1.org/voc/LocationID_Type-IATA_CODE",
+                            "@value": "AMS"
+                        }
+                    },
+                    "scheduledOccurrenceDateTime": "2026-05-09T07:00:00Z"
+                }
+            ],
+            "transportModeCode": "unece:TransportModeCodeList#4"
+        }
+    },
+    "actor": {
+        "type": "TradeParty",
+        "registeredId": {
+            "@type": "https://ref.gs1.org/voc/OrganizationID_Type-DID",
+            "@value": "did:iota:123456"
+        },
+        "@context": "https://vocabulary.uncefact.org/unece-context-D23B.jsonld"
+    },
+    "@context": [
+        "https://www.w3.org/ns/activitystreams"
+    ],
+    "generator": "did:iota:123456",
+    "updated": "2026-02-12T19:19:01.338Z",
+    "name": "Pre-Notification"
+}
