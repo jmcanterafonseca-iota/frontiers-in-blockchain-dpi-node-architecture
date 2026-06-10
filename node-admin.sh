@@ -7,7 +7,7 @@ fi
 
 command='node src/index.js'
 
-bootstrap_env='--load-env=./.env.bootstrap'
+bootstrap_env="--load-env=./.env.bootstrap,.env.bootstrap.$1"
 final_command="$command ${@:2} $bootstrap_env"
 
 

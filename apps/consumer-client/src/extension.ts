@@ -54,6 +54,7 @@ export async function extensionInitialise(
 		}
 	];
 
+	/*
 	nodeEngineConfig.types.dataspaceControlPlaneComponent = [
 		{
 			type: DataspaceControlPlaneComponentType.Service,
@@ -71,7 +72,7 @@ export async function extensionInitialise(
 			features: ["remote"],
 			isMultiInstance: true
 		}
-	];
+	]; */
 
 	nodeEngineConfig.types.dataspaceDataPlaneComponent = [
 		{

@@ -64,12 +64,14 @@ export class ConsumerClient implements IConsumerClientComponent {
 		);
 
 		this._logging = ComponentFactory.get<ILoggingComponent>(
-			options?.loggingComponentType ?? "dataspaceControlPlane"
+			options?.loggingComponentType ?? "logging"
 		);
 
+		/*
 		this._providerDataPlane = ComponentFactory.get<IDataspaceDataPlaneComponent>(
 			options?.dataspaceDataPlaneOfDataProviderComponentType ?? "dataspaceDataPlane"
 		);
+		*/
 
 		this._trustComponent = ComponentFactory.get<ITrustComponent>(
 			options?.trustComponentType ?? "trust"
@@ -94,10 +96,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 			try {
 				const ids = (await ContextIdStore.getContextIds()) as IContextIds;
 				console.log("IDs", ids);
-
-				console.log("Before Catalog");
-
-				this._dataspaceControlPlane.createAppDataset()
 
 				// Workaround until we get the organization identity
 				const consumerIdentity = ids[ContextIdKeys.Organization] as string;

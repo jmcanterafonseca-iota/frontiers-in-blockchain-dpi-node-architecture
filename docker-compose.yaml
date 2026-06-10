@@ -8,8 +8,10 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: frontiers
+      MYSQL_PASSWORD: frontiers
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u twin -ptwin --silent || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u frontiers -pfrontiers --silent || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -29,11 +31,12 @@ services:
     ports:
       - "3010:3000"
     env_file: 
-      - ./common/.env
-      - ./.env.provider
+      - ./environment/common/.env
+      - ./environment/provider/.env.provider
     volumes: 
       - node_provider_data:/var/lib/twin
-      - ./common/.env.bootstrap:/app/.env.bootstrap
+      - ./environment/common/.env.bootstrap:/app/.env.bootstrap
+      - ./environment/provider/.env.bootstrap.provider:/app/.env.bootstrap.provider
       - ./apps/dataspace-example-app:/app/node_modules/@twin-community.org/dataspace-example-app
       - ./dataset:/app/data
 
@@ -44,13 +47,14 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3010:3000"
+      - "3020:3000"
     env_file: 
-      - ./common/.env
-      - ./.env.consumer
+      - ./environment/common/.env
+      - ./environment/consumer/.env.consumer
     volumes: 
       - node_consumer_data:/var/lib/twin
-      - ./common/.env.bootstrap:/app/.env.bootstrap
+      - ./environment/common/.env.bootstrap:/app/.env.bootstrap
+      - ./environment/consumer/.env.bootstrap.consumer:/app/.env.bootstrap.consumer
       - ./apps/consumer-client:/app/node_modules/@twin-community.org/consumer-client
       - ./dataset:/app/data
       
