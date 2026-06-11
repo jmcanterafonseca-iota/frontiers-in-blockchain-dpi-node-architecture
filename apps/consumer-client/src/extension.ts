@@ -54,7 +54,6 @@ export async function extensionInitialise(
 		}
 	];
 
-	/*
 	nodeEngineConfig.types.dataspaceControlPlaneComponent = [
 		{
 			type: DataspaceControlPlaneComponentType.Service,
@@ -72,7 +71,7 @@ export async function extensionInitialise(
 			features: ["remote"],
 			isMultiInstance: true
 		}
-	]; */
+	];
 
 	nodeEngineConfig.types.dataspaceDataPlaneComponent = [
 		{
@@ -85,9 +84,6 @@ export async function extensionInitialise(
 		},
 		{
 			type: DataspaceDataPlaneComponentType.RestClient,
-			options: {
-				endpoint: "http://host.docker.internal:3000"
-			},
 			features: ["remote"],
 			isMultiInstance: true
 		}
@@ -158,10 +154,6 @@ export function consumerClientInitialiser(
 						federatedCatalogueComponentType: engineCore.getRegisteredInstanceType(
 							"federatedCatalogueComponent",
 							["remote"]
-						),
-						dataspaceDataPlaneOfDataProviderComponentType: engineCore.getRegisteredInstanceType(
-							"dataspaceControlPlaneComponent",
-							["remote"]
 						)
 					},
 					createConfig.options
@@ -184,7 +176,10 @@ export function consumerClientInitialiser(
  * @returns The rest routes.
  */
 export function generateRestRoutes(baseRouteName: string, componentName: string): IRestRoute[] {
-	const consumerClientRoute: IRestRoute<{ body: unknown }, { body: unknown }> = {
+	const consumerClientRoute: IRestRoute<
+		{ body: { query: { agreementId: string } } },
+		{ body: unknown }
+	> = {
 		operationId: "consumerClient",
 		summary: "Get Data",
 		method: "GET",
@@ -204,7 +199,27 @@ export function generateRestRoutes(baseRouteName: string, componentName: string)
 		]
 	};
 
-	return [consumerClientRoute];
+	const negotiateRoute: IRestRoute<{ body: unknown }, { body: unknown }> = {
+		operationId: "negotiate",
+		summary: "Negotiate Data",
+		method: "POST",
+		tag: "negotiation",
+		path: `${baseRouteName}/negotiate`,
+		handler: async (httpRequestContext, request) =>
+			negotiate(httpRequestContext, componentName, request),
+		requestType: {
+			type: "unknown",
+			examples: []
+		},
+		responseType: [
+			{
+				type: "unknown",
+				examples: []
+			}
+		]
+	};
+
+	return [consumerClientRoute, negotiateRoute];
 }
 
 /**
@@ -215,13 +230,38 @@ export function generateRestRoutes(baseRouteName: string, componentName: string)
  * @param request.body The body
  * @returns The response object with additional http response properties.
  */
-export async function consumerGetData(
+export async function negotiate(
 	httpRequestContext: IHttpRequestContext,
 	componentName: string,
 	request: { body: unknown }
+): Promise<{ body: { agreementId: string } }> {
+	const component = ComponentFactory.get<IConsumerClientComponent>(componentName);
+	const result = await component.negotiate();
+
+	return {
+		body: {
+			agreementId: result
+		}
+	};
+}
+
+/**
+ * Get data.
+ * @param httpRequestContext The request context for the API.
+ * @param componentName The name of the component to use in the routes.
+ * @param request The request.
+ * @param request.body The body
+ * @param request.body.query query
+ * @param request.body.query.agreementId agrementId
+ * @returns The response object with additional http response properties.
+ */
+export async function consumerGetData(
+	httpRequestContext: IHttpRequestContext,
+	componentName: string,
+	request: { body: { query: { agreementId: string } } }
 ): Promise<{ body: unknown }> {
 	const component = ComponentFactory.get<IConsumerClientComponent>(componentName);
-	const result = await component.getData();
+	const result = await component.getData(request.body.query.agreementId);
 
 	return {
 		body: result

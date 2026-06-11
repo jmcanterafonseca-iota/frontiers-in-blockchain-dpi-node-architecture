@@ -9,7 +9,14 @@ import type { IComponent } from "@twin.org/core";
 export interface IConsumerClientComponent extends IComponent {
 	/**
 	 * Get data
+	 * @param agreementId agreementId
 	 * @returns unknown
 	 */
-	getData(): Promise<unknown>;
+	getData(agreementId: string): Promise<unknown>;
+
+	/**
+	 * Negotiates
+	 * @returns agreement Id
+	 */
+	negotiate(): Promise<string>;
 }
