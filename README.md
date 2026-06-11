@@ -33,8 +33,8 @@ The following steps must be conducted:
 4. Bootstrap both nodes. In this step new organization and node identities are obtained and registered on the IOTA Ledger and their associated keys are stored on the IOTA Ledger. A new admin user is automatically generated that can be used to login into the Node and perform operations.
 
 ```sh
-twin-node provider bootstrap
-twin-node consumer bootstrap
+node-admin.sh provider bootstrap
+node-admin.sh consumer bootstrap
 ```
 
 *Note: Probably the addresses already supplied in this repository can be reused as they will still have funds and you can skip steps 1 to 3.*
@@ -47,7 +47,7 @@ After bootstrap has been perform provider and consumer as organizations will hav
 docker compose up -d
 ```
 
-Provider's Node will listen to port `3010` and Consumer's Node to port `3020`. The database will listen to port `` and each Node will have its own database.
+Provider's Node will listen to port `3010` and Consumer's Node to port `3020`. The database will listen to port `` and each Node  has its own separate database.
 
 ## Scenario
 
