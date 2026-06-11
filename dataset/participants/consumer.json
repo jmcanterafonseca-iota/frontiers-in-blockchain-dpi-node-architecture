@@ -1,3 +1,5 @@
 {
+    "@context": "https://schema.org",
+    "type": "Organization",
     "id": "did:iota:testnet:0x6b0ae4a48777a668376d992553c2fd0f58489179df0a34fa2fe91a759d2cc6d8"
 }

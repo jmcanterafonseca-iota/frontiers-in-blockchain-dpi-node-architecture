@@ -1,1 +1,116 @@
-
+{
+    "type": "Create",
+    "object": {
+        "@context": "https://vocabulary.uncefact.org/unece-context-D23B.jsonld",
+        "type": "Consignment",
+        "identifier": "BF456789",
+        "globalId": "6-BR-123456789000-INV987",
+        "summaryDescription": "Beef",
+        "exporterParty": {
+            "type": "TradeParty",
+            "identifier": {
+                "@type": "https://ref.gs1.org/voc/OrganizationID_Type-LEI",
+                "@value": "AWUPKR9MPOU8FGXBT394"
+            }
+        },
+        "importerParty": {
+            "type": "TradeParty",
+            "identifier": {
+                "@type": "https://ref.gs1.org/voc/OrganizationID_Type-EORI",
+                "@value": "GB362012792073"
+            }
+        },
+        "includedConsignmentItem": [
+            {
+                "type": "ConsignmentItem",
+                "exportTypeCode": "0201"
+            }
+        ],
+        "originCountry": {
+            "countryId": "unece:CountryId#BR"
+        },
+        "destinationCountry": {
+            "countryId": "unece:CountryId#GB"
+        },
+        "packageQuantity": {
+            "type": "QuantityType",
+            "unece:QuantityTypeValue": 10
+        },
+        "weightUnitNetWeightMeasure": [
+            {
+                "type": "WeightUnitMeasureType",
+                "unece:WeightUnitMeasureTypeValue": "30987",
+                "unece:WeightUnitMeasureTypeCode": "unece:WeightUnitMeasureCode#KGM"
+            }
+        ],
+        "utilizedTransportEquipment": [
+            {
+                "transportEquipmentCategoryCode": "unece:TransportEquipmentCategoryCodeList#AM",
+                "identifier": "MSKU0214857",
+                "type": "LogisticsTransportEquipment",
+                "affixedSeal": [
+                    {
+                        "type": "Seal",
+                        "identifier": "TX1138"
+                    }
+                ]
+            }
+        ],
+        "atDepartureTransportMovement": {
+            "type": "TransportMovement",
+            "departureEvent": [
+                {
+                    "type": "TransportEvent",
+                    "occurrenceLogisticsLocation": {
+                        "type": "LogisticsLocation",
+                        "identifier": {
+                            "@type": "https://ref.gs1.org/voc/LocationID_Type-UN_LOCODE",
+                            "@value": "BRSSZ"
+                        }
+                    },
+                    "scheduledOccurrenceDateTime": "2026-05-8T19:00:00Z"
+                }
+            ],
+            "transportModeCode": "unece:TransportModeCodeList#1",
+            "carrierParty": {
+                "type": "TradeParty",
+                "name": "Maersk"
+            },
+            "usedTransportMeans": {
+                "identifier": "Maersk Frio",
+                "transportMeansTypeCode": "unece:TransportMeansTypeCodeList#1506"
+            }
+        },
+        "atArrivalTransportMovement": {
+            "type": "TransportMovement",
+            "arrivalEvent": [
+                {
+                    "type": "TransportEvent",
+                    "occurrenceLogisticsLocation": {
+                        "type": "LogisticsLocation",
+                        "identifier": {
+                            "@type": "https://ref.gs1.org/voc/LocationID_Type-UN_LOCODE",
+                            "@value": "GBSOU"
+                        }
+                    },
+                    "scheduledOccurrenceDateTime": "2026-05-15T07:00:00Z"
+                }
+            ],
+            "transportModeCode": "unece:TransportModeCodeList#1"
+        }
+    },
+    "actor": {
+        "type": "TradeParty",
+        "registeredId": {
+            "@type": "https://ref.gs1.org/voc/OrganizationID_Type-DID",
+            "@value": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e"
+        },
+        "@context": "https://vocabulary.uncefact.org/unece-context-D23B.jsonld"
+    },
+    "@context": [
+        "https://www.w3.org/ns/activitystreams"
+    ],
+    "generator": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e",
+    "updated": "2026-02-12T19:19:01.338Z",
+    "name": "Pre-Notification"
+}
