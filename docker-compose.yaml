@@ -39,6 +39,8 @@ services:
       - ./environment/provider/.env.bootstrap.provider:/app/.env.bootstrap.provider
       - ./apps/dataspace-example-app:/app/node_modules/@twin-community.org/dataspace-example-app
       - ./dataset:/app/data
+    command: |
+      sh -c 'node src/index.js --env-prefix=DPI_NODE_'
 
   dpi-node-consumer:
     image: twinfoundation/twin-node:0.0.3-next.50
@@ -57,6 +59,8 @@ services:
       - ./environment/consumer/.env.bootstrap.consumer:/app/.env.bootstrap.consumer
       - ./apps/consumer-client:/app/node_modules/@twin-community.org/consumer-client
       - ./dataset:/app/data
+    command: |
+      sh -c 'node src/index.js --env-prefix=DPI_NODE_'
       
 volumes:
   mysql_data:

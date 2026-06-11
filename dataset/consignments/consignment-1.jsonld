@@ -79,10 +79,11 @@
             ],
             "transportModeCode": "unece:TransportModeCodeList#1",
             "carrierParty": {
-                "type": "TradeParty"
+                "type": "TradeParty",
+                "name": "DFDS"
             },
             "usedTransportMeans": {
-                "identifier": "vessel_identifier",
+                "identifier": "Belgia Seaways",
                 "transportMeansTypeCode": "unece:TransportMeansTypeCodeList#1512"
             }
         },
@@ -108,14 +109,14 @@
         "type": "TradeParty",
         "registeredId": {
             "@type": "https://ref.gs1.org/voc/OrganizationID_Type-DID",
-            "@value": "did:iota:123456"
+            "@value": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e"
         },
         "@context": "https://vocabulary.uncefact.org/unece-context-D23B.jsonld"
     },
     "@context": [
         "https://www.w3.org/ns/activitystreams"
     ],
-    "generator": "did:iota:123456",
+    "generator": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e",
     "updated": "2026-02-12T19:19:01.338Z",
     "name": "Pre-Notification"
 }

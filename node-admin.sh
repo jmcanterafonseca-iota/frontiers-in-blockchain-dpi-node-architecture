@@ -7,7 +7,7 @@ fi
 
 command='node src/index.js'
 
-bootstrap_env="--load-env=./.env.bootstrap,.env.bootstrap.$1"
+bootstrap_env="--load-env=./.env.bootstrap,.env.bootstrap.$1 --env-prefix=DPI_NODE_"
 final_command="$command ${@:2} $bootstrap_env"
 
 
