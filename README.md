@@ -47,20 +47,22 @@ After bootstrap has been perform provider and consumer as organizations will hav
 docker compose up -d
 ```
 
-Provider's Node will listen to host's port `3010` and Consumer's Node to host's port `3020`. The database will listen to host's port `3333` and each Node  has its own separate database, `dpi_provider` and `dpi_consumer` respectively. 
+Provider's Node will listen to host's port `3010` and Consumer's Node to host's port `3020`. The database will listen to host's port `3333` and each Node  has its own separate database, `dpi_provider` and `dpi_consumer` respectively.
 
 ## Scenario
 
 To reproduce the scenario . The steps to be taken are:
 
-1. Register 3 consignments in the auditable item graph component. You can observe the proofs that are registered onchain through this request.
+1. Register 3 consignments in the auditable item graph component. See [script](./dataset/scripts/create-all-consignments.sh).
 
-2. Register the DS App on the Provider's Node.
+2. Retrieve the proofs that are registered onchain. See [script](./dataset//scripts/get-aig.sh).
 
-3. Register the offered dataset that will allow the data consumer to request a negotiation for consignments. Register the data sharing policy. 
+3. Register the DS App on the Provider's Node.
 
-4. Negotiate as a Consumer using the Eclipse Dataspace Protocol
+4. Register the offered dataset that will allow the data consumer to request a negotiation for consignments. Register the data sharing policy.
 
-5. Start a data transfer as a consumer through the Dataspace Protocol
+5. Negotiate as a Consumer using the Eclipse Dataspace Protocol
 
-6. Retrieve the data using a regular REST call.
+6. Start a data transfer as a consumer through the Dataspace Protocol
+
+7. Retrieve the data using a regular REST call.
