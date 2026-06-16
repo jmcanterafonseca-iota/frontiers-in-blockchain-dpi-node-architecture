@@ -39,7 +39,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 	// This consumer node's own address on the docker network. The provider calls back
 	// here during negotiation/transfer, so it must be the consumer container name, NOT
 	// host.docker.internal (which would point the provider at the host, not the consumer).
-	private readonly _CONSUMER_ENDPOINT = "http://dpi_node_consumer:3000";
+	private readonly _CONSUMER_ENDPOINT = "http://dpi.consumer:3000";
 
 	private readonly _DATASET_ENTITY_TYPE = "https://vocabulary.uncefact.org/Consignment";
 
@@ -190,9 +190,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 		return new Promise<string>(async (resolve, reject) => {
 			try {
 				const ids = (await ContextIdStore.getContextIds()) as IContextIds;
-				console.log("IDs", ids);
-
-				console.log("Before Catalog");
 
 				// Trust tokens are identity-only and the identity IS the tenant's
 				// organization DID from the request context.
@@ -210,10 +207,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 					message: `DatasetId: ${datasetId}, Policy: ${datasetPolicyId}, Endpoint URL: ${providerEndpoint}`,
 					source: this.className()
 				});
-
-				console.log("After Catalog");
-
-				console.log("Token", token);
 
 				const negotiationCallbackId = `negotiation-${new Date().toISOString()}`;
 
@@ -296,7 +289,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 	public async start(nodeLoggingComponentType?: string): Promise<void> {}
 
 	/**
-	 * Queries the catalog to obtain data
+	 * Queries the catalog to obtain data.
 	 * @param datasetDataType dataset data type.
 	 * @param token to use.
 	 * @returns provider endpoint.
@@ -325,7 +318,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 			const catalogError = catalogResponse.result;
 			throw new Error(catalogError.code);
 		}
-		console.log(catalogResponse);
 
 		const catalog = catalogResponse.result;
 		if (!Is.arrayValue(catalog.catalog) && !Is.arrayValue(catalog.dataset)) {

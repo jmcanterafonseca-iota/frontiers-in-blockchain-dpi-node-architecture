@@ -51,7 +51,7 @@ export async function extensionInitialise(
 			options: {
 				// The consumer reads the PROVIDER node's federated catalogue across the
 				// docker network, so this is the provider container name.
-				endpoint: "http://dpi_node_provider:3000"
+				endpoint: "http://dpi.provider:3000"
 			},
 			features: ["remote"],
 			isDefault: true
@@ -76,7 +76,7 @@ export async function extensionInitialise(
 			options: {
 				// Default remote control-plane endpoint (provider container). Per-call the
 				// consumer overrides this with the providerEndpoint resolved from the catalogue.
-				endpoint: "http://dpi_node_provider:3000"
+				endpoint: "http://dpi.provider:3000"
 			},
 			features: ["remote"],
 			isMultiInstance: true
@@ -118,9 +118,9 @@ export async function extensionInitialise(
 							accessMode: "public",
 							objects: {
 								"urn:dpi:consumer-profile": {
-									"@context": "https://www.w3.org/ns/odrl.jsonld",
-									"@type": "Party",
-									purpose: "data-consumption"
+									"@context": "https://schema.org",
+									"@type": "Organization"
+									// purpose: "data-consumption"
 								}
 							}
 						}
@@ -217,10 +217,7 @@ export function consumerClientInitialiser(
  * @returns The rest routes.
  */
 export function generateRestRoutes(baseRouteName: string, componentName: string): IRestRoute[] {
-	const consumerClientRoute: IRestRoute<
-		{ query: { agreementId: string } },
-		{ body: unknown }
-	> = {
+	const consumerClientRoute: IRestRoute<{ query: { agreementId: string } }, { body: unknown }> = {
 		operationId: "consumerClient",
 		summary: "Get Data",
 		method: "GET",
