@@ -41,8 +41,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 	// host.docker.internal (which would point the provider at the host, not the consumer).
 	private readonly _CONSUMER_ENDPOINT = "http://dpi.consumer:3000";
 
-	private readonly _DATASET_ENTITY_TYPE = "https://vocabulary.uncefact.org/Consignment";
-
 	private readonly _logging: ILoggingComponent;
 
 	private readonly _dataspaceControlPlane: IDataspaceControlPlaneComponent;
@@ -77,7 +75,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 		return "ConsumerClient";
 	}
 
-	public async getData(agreementId: string): Promise<unknown> {
+	public async getData(agreementId: string, entityType: string): Promise<unknown> {
 		// eslint-disable-next-line no-async-promise-executor
 		return new Promise<unknown>(async (resolve, reject) => {
 			try {
@@ -89,7 +87,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 
 				const token = await this._trustComponent.generate(consumerIdentity, undefined, {});
 
-				const { providerEndpoint } = await this.getDatasetDetails(this._DATASET_ENTITY_TYPE, token);
+				const { providerEndpoint } = await this.getDatasetDetails(entityType, token);
 
 				const format = DataspaceTransferFormat.HttpDataPull;
 
@@ -118,7 +116,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 						);
 						const entities = await dataProviderDataPlane.getDataAssetEntities(
 							{
-								entityType: this._DATASET_ENTITY_TYPE
+								entityType
 							},
 							consumerPid,
 							undefined,
@@ -185,7 +183,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 		});
 	}
 
-	public async negotiate(): Promise<string> {
+	public async negotiate(entityType: string): Promise<string> {
 		// eslint-disable-next-line no-async-promise-executor
 		return new Promise<string>(async (resolve, reject) => {
 			try {
@@ -198,7 +196,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 				const token = await this._trustComponent.generate(consumerIdentity, undefined, {});
 
 				const { datasetId, datasetPolicyId, providerEndpoint } = await this.getDatasetDetails(
-					this._DATASET_ENTITY_TYPE,
+					entityType,
 					token
 				);
 
@@ -321,7 +319,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 
 		const catalog = catalogResponse.result;
 		if (!Is.arrayValue(catalog.catalog) && !Is.arrayValue(catalog.dataset)) {
-			throw new Error(`Catalog query did not return any dataset: ${this._DATASET_ENTITY_TYPE}`);
+			throw new Error(`Catalog query did not return any dataset: ${datasetDataType}`);
 		}
 		let dataset: IDataspaceProtocolDataset | undefined;
 
@@ -335,13 +333,13 @@ export class ConsumerClient implements IConsumerClientComponent {
 				catalog.catalog
 			)[0];
 			if (!Is.arrayValue(catalogItem.dataset)) {
-				throw new Error(`Catalog query did not return any dataset: ${this._DATASET_ENTITY_TYPE}`);
+				throw new Error(`Catalog query did not return any dataset: ${datasetDataType}`);
 			}
 			dataset = catalogItem.dataset[0] as IDataspaceProtocolDataset;
 		}
 
 		if (Is.undefined(dataset)) {
-			throw new Error(`Catalog query did not return any dataset: ${this._DATASET_ENTITY_TYPE}`);
+			throw new Error(`Catalog query did not return any dataset: ${datasetDataType}`);
 		}
 
 		const datasetId = dataset["@id"];

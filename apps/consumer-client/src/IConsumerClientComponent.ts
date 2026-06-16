@@ -10,13 +10,15 @@ export interface IConsumerClientComponent extends IComponent {
 	/**
 	 * Get data
 	 * @param agreementId agreementId
+	 * @param entityType The entity type
 	 * @returns unknown
 	 */
-	getData(agreementId: string): Promise<unknown>;
+	getData(agreementId: string, entityType: string): Promise<unknown>;
 
 	/**
-	 * Negotiates
+	 * Negotiates over a dataset passing id as parameter.
+	 * @param entityType The type of entity to negotiate over.
 	 * @returns agreement Id
 	 */
-	negotiate(): Promise<string>;
+	negotiate(entityType: string): Promise<string>;
 }

@@ -217,10 +217,13 @@ export function consumerClientInitialiser(
  * @returns The rest routes.
  */
 export function generateRestRoutes(baseRouteName: string, componentName: string): IRestRoute[] {
-	const consumerClientRoute: IRestRoute<{ query: { agreementId: string } }, { body: unknown }> = {
+	const consumerClientRoute: IRestRoute<
+		{ body: { agreementId: string; entityType: string } },
+		{ body: unknown }
+	> = {
 		operationId: "consumerClient",
 		summary: "Get Data",
-		method: "GET",
+		method: "POST",
 		tag: "client",
 		path: `${baseRouteName}/query-data`,
 		handler: async (httpRequestContext, request) =>
@@ -237,7 +240,10 @@ export function generateRestRoutes(baseRouteName: string, componentName: string)
 		]
 	};
 
-	const negotiateRoute: IRestRoute<{ body: unknown }, { body: unknown }> = {
+	const negotiateRoute: IRestRoute<
+		{ body: { datasetId: string } },
+		{ body: { agreementId: string } }
+	> = {
 		operationId: "negotiate",
 		summary: "Negotiate Data",
 		method: "POST",
@@ -266,15 +272,16 @@ export function generateRestRoutes(baseRouteName: string, componentName: string)
  * @param componentName The name of the component to use in the routes.
  * @param request The request.
  * @param request.body The body
+ * @param request.body.datasetId The datasetId
  * @returns The response object with additional http response properties.
  */
 export async function negotiate(
 	httpRequestContext: IHttpRequestContext,
 	componentName: string,
-	request: { body: unknown }
+	request: { body: { datasetId: string } }
 ): Promise<{ body: { agreementId: string } }> {
 	const component = ComponentFactory.get<IConsumerClientComponent>(componentName);
-	const result = await component.negotiate();
+	const result = await component.negotiate(request.body.datasetId);
 
 	return {
 		body: {
@@ -288,17 +295,18 @@ export async function negotiate(
  * @param httpRequestContext The request context for the API.
  * @param componentName The name of the component to use in the routes.
  * @param request The request.
- * @param request.query The query string params.
- * @param request.query.agreementId The agreement id to fetch data for.
+ * @param request.body The body string params.
+ * @param request.body.agreementId The agreement id to fetch data for.
+ * @param request.body.entityType The type of entity associated with the agreementId.
  * @returns The response object with additional http response properties.
  */
 export async function consumerGetData(
 	httpRequestContext: IHttpRequestContext,
 	componentName: string,
-	request: { query: { agreementId: string } }
+	request: { body: { agreementId: string; entityType: string } }
 ): Promise<{ body: unknown }> {
 	const component = ComponentFactory.get<IConsumerClientComponent>(componentName);
-	const result = await component.getData(request.query.agreementId);
+	const result = await component.getData(request.body.agreementId, request.body.entityType);
 
 	return {
 		body: result
