@@ -1,4 +1,4 @@
-name: 'DPI Node'
+name: "DPI Node"
 
 services:
   db:
@@ -11,7 +11,11 @@ services:
       MYSQL_USER: frontiers
       MYSQL_PASSWORD: frontiers
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u frontiers -pfrontiers --silent || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u frontiers -pfrontiers --silent || exit 1",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -23,17 +27,24 @@ services:
       - ./init:/docker-entrypoint-initdb.d
 
   dpi-node-provider:
-    image: twinfoundation/twin-node:0.0.3-next.50
+    # Published post-refactor image (organization-identifiers #19/#203). next.56 carries
+    # node-core 0.0.3-next.56, rights-management-pnp next.51 (provider-org callback fix #181)
+    # and federated-catalogue next.21 (object-form accessService bake fix #88). Verified 2026-06-16.
+    image: twinfoundation/twin-node:0.0.3-next.56
+    # Local build (only needed when Docker Hub lags the refactor — kept for reference):
+    # build:
+    #   context: ../twin-node
+    #   dockerfile: apps/node/tests/kenyaCommunityUseCaseDefaultArbiter/Dockerfile
     container_name: dpi_node_provider
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "3010:3000"
-    env_file: 
+    env_file:
       - ./environment/common/.env
       - ./environment/provider/.env.provider
-    volumes: 
+    volumes:
       - node_provider_data:/var/lib/twin
       - ./environment/common/.env.bootstrap:/app/.env.bootstrap
       - ./environment/provider/.env.bootstrap.provider:/app/.env.bootstrap.provider
@@ -43,17 +54,21 @@ services:
       sh -c 'node src/index.js --env-prefix=DPI_NODE_'
 
   dpi-node-consumer:
-    image: twinfoundation/twin-node:0.0.3-next.50
+    # See dpi-node-provider note — published post-refactor image.
+    image: twinfoundation/twin-node:0.0.3-next.56
+    # build:
+    #   context: ../twin-node
+    #   dockerfile: apps/node/tests/kenyaCommunityUseCaseDefaultArbiter/Dockerfile
     container_name: dpi_node_consumer
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "3020:3000"
-    env_file: 
+    env_file:
       - ./environment/common/.env
       - ./environment/consumer/.env.consumer
-    volumes: 
+    volumes:
       - node_consumer_data:/var/lib/twin
       - ./environment/common/.env.bootstrap:/app/.env.bootstrap
       - ./environment/consumer/.env.bootstrap.consumer:/app/.env.bootstrap.consumer
@@ -61,7 +76,7 @@ services:
       - ./dataset:/app/data
     command: |
       sh -c 'node src/index.js --env-prefix=DPI_NODE_'
-      
+
 volumes:
   mysql_data:
   node_consumer_data:

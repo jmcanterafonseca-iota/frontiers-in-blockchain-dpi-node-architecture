@@ -35,9 +35,15 @@ The following steps must be conducted:
 4. Bootstrap both nodes. In this step new organization and node identities are obtained and registered on the IOTA Ledger and their associated keys are stored on the IOTA Ledger. A new admin user is automatically generated that can be used to login into the Node and perform operations.
 
 ```sh
-node-admin.sh provider bootstrap
-node-admin.sh consumer bootstrap
+node-admin.sh provider bootstrap-legacy
+node-admin.sh consumer bootstrap-legacy
 ```
+
+> Note (twin-node next.53+): the bootstrap command is `bootstrap-legacy` (the bare
+> `bootstrap` command does not exist), and the bootstrap feature flags were renamed —
+> `DPI_NODE_FEATURES` must be `"admin-user,wallet"` (the old
+> `node-identity,node-admin-user,node-wallet` names are silently ignored, which skips
+> admin-user creation and makes login fail with `userNotFound`).
 
 After bootstrap has been perform provider and consumer as organizations will have their own IOTA Identity. You can see an [example](./dataset/participants/consumer.json).
 

@@ -5,7 +5,7 @@
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import type { IUrlTransformerComponent } from "@twin.org/api-models";
+import { HttpUrlHelper } from "@twin.org/api-models";
 import { ContextIdKeys, ContextIdStore, type IContextIds } from "@twin.org/context";
 import { ArrayHelper, ComponentFactory, Is } from "@twin.org/core";
 import {
@@ -28,7 +28,7 @@ import {
 	type IDataspaceProtocolOffer,
 	type IDataspaceProtocolTransferStartMessage
 } from "@twin.org/standards-dataspace-protocol";
-import { TrustHelper, type ITrustComponent } from "@twin.org/trust-models";
+import type { ITrustComponent } from "@twin.org/trust-models";
 import type { IConsumerClientComponent } from "./IConsumerClientComponent.js";
 import type { IConsumerClientConstructorOptions } from "./IConsumerClientConstructorOptions.js";
 
@@ -36,8 +36,10 @@ import type { IConsumerClientConstructorOptions } from "./IConsumerClientConstru
  * Test App Activity Handler.
  */
 export class ConsumerClient implements IConsumerClientComponent {
-	private readonly _CONSUMER_ENDPOINT = "http://host.docker.internal:3000";
-	/* /rights-management?x-api-key=019e5f84a1657dd88e76e1f158abcda2*/
+	// This consumer node's own address on the docker network. The provider calls back
+	// here during negotiation/transfer, so it must be the consumer container name, NOT
+	// host.docker.internal (which would point the provider at the host, not the consumer).
+	private readonly _CONSUMER_ENDPOINT = "http://dpi_node_consumer:3000";
 
 	private readonly _DATASET_ENTITY_TYPE = "https://vocabulary.uncefact.org/Consignment";
 
@@ -48,8 +50,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 	private readonly _trustComponent: ITrustComponent;
 
 	private readonly _federatedCatalogue: IFederatedCatalogueComponent;
-
-	private readonly _urlTransformer: IUrlTransformerComponent;
 
 	/**
 	 * Create a new instance.
@@ -71,10 +71,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 		this._federatedCatalogue = ComponentFactory.get<IFederatedCatalogueComponent>(
 			options?.federatedCatalogueComponentType ?? "federatedCatalogue"
 		);
-
-		this._urlTransformer = ComponentFactory.get<IUrlTransformerComponent>(
-			options?.urlTransformerComponentType ?? "url-transformer-service"
-		);
 	}
 
 	public className(): string {
@@ -87,17 +83,11 @@ export class ConsumerClient implements IConsumerClientComponent {
 			try {
 				const ids = (await ContextIdStore.getContextIds()) as IContextIds;
 
-				// Workaround until we get the organization identity
+				// Trust tokens are identity-only and the identity IS the tenant's
+				// organization DID from the request context.
 				const consumerIdentity = ids[ContextIdKeys.Organization] as string;
 
-				// Several workarounds here due to several improvements needed at the DS Protocol implementation side
-				const token = await this._trustComponent.generate(
-					ids[ContextIdKeys.Node] as string,
-					undefined,
-					{},
-					TrustHelper.hashTenantId(ids[ContextIdKeys.Tenant]),
-					consumerIdentity
-				);
+				const token = await this._trustComponent.generate(consumerIdentity, undefined, {});
 
 				const { providerEndpoint } = await this.getDatasetDetails(this._DATASET_ENTITY_TYPE, token);
 
@@ -156,13 +146,19 @@ export class ConsumerClient implements IConsumerClientComponent {
 					onTerminated: async (consumerPid: string, reason?: string) => {}
 				});
 
+				// The PROVIDER node mounts its dataspace control plane at base path
+				// "dataspace" (node default). Only the consumer renamed its own control
+				// plane to "dataspace-control-plane" via the extension restPath, so the
+				// provider-facing transfer endpoint must use "dataspace".
 				const providerEndpointTransfer = new URL(providerEndpoint);
-				providerEndpointTransfer.pathname += "dataspace-control-plane";
+				providerEndpointTransfer.pathname += "dataspace";
 
-				const consumerTransferCallback = await this._urlTransformer.addEncryptedQueryParamToUrl(
+				// Callbacks route by the cleartext org DID, not an encrypted tenant token.
+				// This is the CONSUMER's own control-plane path (restPath above).
+				const consumerTransferCallback = HttpUrlHelper.addQueryStringParam(
 					`${this._CONSUMER_ENDPOINT}/dataspace-control-plane`,
-					"tenant",
-					ids[ContextIdKeys.Tenant] as string
+					ContextIdKeys.Organization,
+					consumerIdentity
 				);
 
 				const transferResult = await this._dataspaceControlPlane.startDataTransfer(
@@ -198,17 +194,11 @@ export class ConsumerClient implements IConsumerClientComponent {
 
 				console.log("Before Catalog");
 
-				// Workaround until we get the organization identity
+				// Trust tokens are identity-only and the identity IS the tenant's
+				// organization DID from the request context.
 				const consumerIdentity = ids[ContextIdKeys.Organization] as string;
 
-				// Several workarounds here due to several improvements needed at the DS Protocol implementation side
-				const token = await this._trustComponent.generate(
-					ids[ContextIdKeys.Node] as string,
-					undefined,
-					{},
-					TrustHelper.hashTenantId(ids[ContextIdKeys.Tenant]),
-					consumerIdentity
-				);
+				const token = await this._trustComponent.generate(consumerIdentity, undefined, {});
 
 				const { datasetId, datasetPolicyId, providerEndpoint } = await this.getDatasetDetails(
 					this._DATASET_ENTITY_TYPE,

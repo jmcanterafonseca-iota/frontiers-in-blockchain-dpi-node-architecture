@@ -1,0 +1,479 @@
+{
+	"info": {
+		"_postman_id": "dpi-dataspace-2node",
+		"name": "DPI Dataspace (2-node) Full Flow",
+		"description": "End-to-end DSP data sharing across two TWIN nodes (provider :3010, consumer :3020) for the frontiers-in-blockchain-dpi-node-architecture demo. Flow: provider publishes an ODRL offer + dataset, consumer discovers it, negotiates a contract to FINALIZED (via the consumer-client extension), then requests + starts a pull transfer and fetches the data. Each request's Tests tab extracts the value the next one needs. Post-#203 (organization identifiers): login is email+password only; other routes carry ?organization=<org-did> and the caller is identified by a trust JWT.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "A. Provider setup (one-time)",
+			"item": [
+				{
+					"name": "A1. Login as provider",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const sc = pm.response.headers.get('Set-Cookie') || '';",
+									"const m = sc.match(/access_token=([^;]+)/);",
+									"pm.test('access_token cookie returned', () => pm.expect(m).to.not.be.null);",
+									"if (m) { pm.environment.set('prov_session_jwt', m[1]); console.log('saved prov_session_jwt'); }"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"description": "Email+password login. The access_token is returned as a Set-Cookie; the Tests tab saves it to prov_session_jwt.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{prov_email}}\",\n  \"password\": \"{{prov_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/authentication/login"
+					}
+				},
+				{
+					"name": "A2. Mint provider trust JWT-VC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const j = pm.response.json();",
+									"pm.test('jwt returned', () => pm.expect(j.jwt).to.be.a('string'));",
+									"if (j.jwt) { pm.environment.set('prov_trust_jwt', j.jwt); console.log('saved prov_trust_jwt'); }"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Cookie",
+								"value": "access_token={{prov_session_jwt}}"
+							}
+						],
+						"description": "Self-issued trust JWT for the provider org. Used to authorize the provider's start of the transfer (D2).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"subject\": {\n    \"id\": \"{{prov_did}}\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/identity/{{prov_did}}/verifiable-credential/{{trust_vm}}?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "A3. Create ODRL Offer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('created or already exists', () => pm.expect([201,204,409]).to.include(pm.response.code));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{prov_session_jwt}}"
+							}
+						],
+						"description": "Seeds the offer in the Policy Administration Point. The permission target MUST be a twin:jsonPath ($ = whole record): the data-plane arbiter rejects a plain dataset-id target. Re-run returns 409 (already exists).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": \"http://www.w3.org/ns/odrl.jsonld\",\n  \"@type\": \"Offer\",\n  \"@id\": \"{{offer_id}}\",\n  \"assigner\": \"{{prov_did}}\",\n  \"target\": \"{{dataset_id}}\",\n  \"action\": \"read\",\n  \"permission\": [\n    {\n      \"action\": \"read\",\n      \"target\": {\n        \"@type\": \"twin:jsonPath\",\n        \"twin:jsonPathExpression\": \"$\"\n      }\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/rights-management/policy/admin?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "A4. Register Dataset",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('created or already exists', () => pm.expect([201,204,409]).to.include(pm.response.code));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{prov_session_jwt}}"
+							}
+						],
+						"description": "Publishes the dataset into the federated catalogue, mapped to the dataspace-example-app (app_id). dcat:endpointURL is the provider's docker-network address (prov_net) so the consumer container can reach it; the catalogue bakes ?organization=<prov_did> onto it at publish time. Re-run returns 409.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"appId\": \"{{app_id}}\",\n  \"dataset\": {\n    \"@context\": {\n      \"dcat\": \"http://www.w3.org/ns/dcat#\",\n      \"dcterms\": \"http://purl.org/dc/terms/\",\n      \"odrl\": \"http://www.w3.org/ns/odrl/2/\"\n    },\n    \"@type\": \"dcat:Dataset\",\n    \"@id\": \"{{dataset_id}}\",\n    \"dcterms:title\": \"DPI Consignment Dataset\",\n    \"dcterms:type\": \"{{dataset_type}}\",\n    \"dcterms:publisher\": \"{{prov_did}}\",\n    \"dcat:distribution\": {\n      \"@type\": \"dcat:Distribution\",\n      \"dcterms:format\": \"application/json\",\n      \"dcat:accessService\": {\n        \"@id\": \"{{prov_net}}/rights-management\",\n        \"@type\": \"dcat:DataService\",\n        \"dcat:endpointURL\": \"{{prov_net}}/\"\n      }\n    },\n    \"odrl:hasPolicy\": {\n      \"@context\": \"http://www.w3.org/ns/odrl.jsonld\",\n      \"@type\": \"Offer\",\n      \"@id\": \"{{offer_id}}\",\n      \"assigner\": \"{{prov_did}}\",\n      \"target\": \"{{dataset_id}}\",\n      \"action\": \"read\",\n      \"permission\": [\n        {\n          \"action\": \"read\",\n          \"target\": {\n            \"@type\": \"twin:jsonPath\",\n            \"twin:jsonPathExpression\": \"$\"\n          }\n        }\n      ]\n    }\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/dataspace/app-datasets?organization={{prov_did}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "B. Consumer setup (one-time)",
+			"item": [
+				{
+					"name": "B1. Login as consumer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const sc = pm.response.headers.get('Set-Cookie') || '';",
+									"const m = sc.match(/access_token=([^;]+)/);",
+									"pm.test('access_token cookie returned', () => pm.expect(m).to.not.be.null);",
+									"if (m) { pm.environment.set('cons_session_jwt', m[1]); console.log('saved cons_session_jwt'); }"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"description": "Email+password login on the consumer node. Saves cons_session_jwt.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{cons_email}}\",\n  \"password\": \"{{cons_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{cons_base}}/authentication/login"
+					}
+				},
+				{
+					"name": "B2. Mint consumer trust JWT-VC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const j = pm.response.json();",
+									"pm.test('jwt returned', () => pm.expect(j.jwt).to.be.a('string'));",
+									"if (j.jwt) { pm.environment.set('cons_trust_jwt', j.jwt); console.log('saved cons_trust_jwt'); }"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Cookie",
+								"value": "access_token={{cons_session_jwt}}"
+							}
+						],
+						"description": "Self-issued trust JWT for the consumer org. Identifies the consumer to the provider on the transfer request (D1) and the catalogue query (C1).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"subject\": {\n    \"id\": \"{{cons_did}}\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{cons_base}}/identity/{{cons_did}}/verifiable-credential/{{trust_vm}}?organization={{cons_did}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "C. Discover + negotiate",
+			"item": [
+				{
+					"name": "C1. Query the federated catalogue",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const j = pm.response.json();",
+									"pm.test('status 200', () => pm.response.to.have.status(200));",
+									"const ids = [];",
+									"(j.dataset||[]).forEach(d => ids.push(d['@id']));",
+									"(j.catalog||[]).forEach(c => (c.dataset||[]).forEach(d => ids.push(d['@id'])));",
+									"pm.test('dataset discoverable', () => pm.expect(ids).to.include(pm.environment.get('dataset_id')));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{cons_trust_jwt}}"
+							}
+						],
+						"description": "Optional/illustrative: the consumer reads the PROVIDER's catalogue and confirms the dataset is discoverable (C2 does this internally too). Empty filter (this node registers no catalogue filter handlers, so we return all datasets, exactly as the consumer-client does). Authorized by the consumer trust JWT; ?organization is the catalogue owner (provider).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": [\n    \"https://w3id.org/dspace/2025/1/context.jsonld\"\n  ],\n  \"@type\": \"CatalogRequestMessage\",\n  \"filter\": []\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/federated-catalogue/request?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "C2. Negotiate (consumer-client)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const j = pm.response.json();",
+									"pm.test('agreementId returned', () => pm.expect(j.agreementId).to.be.a('string'));",
+									"if (j.agreementId) { pm.environment.set('agreement_id', j.agreementId); console.log('agreement_id =', j.agreementId); }"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Cookie",
+								"value": "access_token={{cons_session_jwt}}"
+							}
+						],
+						"description": "Drives the whole DSP contract negotiation in-process on the consumer node: discovers the dataset in the provider catalogue, runs REQUESTED -> OFFERED -> ACCEPTED -> AGREED -> VERIFIED -> FINALIZED, and returns the agreement id. Authorized by the consumer session cookie.",
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{cons_base}}/consumer-client/negotiate"
+					}
+				}
+			]
+		},
+		{
+			"name": "D. Transfer + retrieve",
+			"item": [
+				{
+					"name": "D1. Request transfer (consumer -> provider)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Fresh consumerPid for this transfer.",
+									"pm.environment.set('consumer_pid', 'urn:uuid:' + pm.variables.replaceIn('{{$guid}}'));"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const j = pm.response.json();",
+									"pm.test('providerPid returned', () => pm.expect(j.providerPid).to.be.a('string'));",
+									"if (j.providerPid) {",
+									"    pm.environment.set('provider_pid', j.providerPid);",
+									"    pm.environment.set('provider_pid_enc', encodeURIComponent(j.providerPid));",
+									"    console.log('provider_pid =', j.providerPid);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{cons_trust_jwt}}"
+							}
+						],
+						"description": "Consumer asks the provider to transfer data for the finalized agreement (pull mode). A fresh consumerPid is generated in the Pre-request tab. Authorized by the consumer trust JWT. Captures providerPid.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": [\n    \"https://w3id.org/dspace/2025/1/context.jsonld\"\n  ],\n  \"@type\": \"TransferRequestMessage\",\n  \"agreementId\": \"{{agreement_id}}\",\n  \"consumerPid\": \"{{consumer_pid}}\",\n  \"callbackAddress\": \"{{cons_net}}/dataspace-control-plane?organization={{cons_did}}\",\n  \"format\": \"HttpData-PULL\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/dataspace/transfers/request?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "D2. Provider starts transfer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const j = pm.response.json();",
+									"pm.test('TransferStartMessage', () => pm.expect(j['@type']).to.eql('TransferStartMessage'));",
+									"pm.test('dataAddress present', () => pm.expect(j.dataAddress).to.not.be.undefined);",
+									"if (j.dataAddress) {",
+									"    // The provider bakes its docker-network address (prov_net) into the endpoint.",
+									"    // Rewrite it to prov_base so Postman (on the host) can reach it.",
+									"    const provNet = pm.environment.get('prov_net');",
+									"    const provBase = pm.environment.get('prov_base');",
+									"    let ep = j.dataAddress.endpoint;",
+									"    if (provNet && provBase) ep = ep.split(provNet).join(provBase);",
+									"    pm.environment.set('data_endpoint', ep);",
+									"    const auth = (j.dataAddress.endpointProperties || []).find(p => p.name === 'authorization');",
+									"    if (auth) pm.environment.set('access_token', auth.value);",
+									"    console.log('data_endpoint =', ep);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{prov_trust_jwt}}"
+							}
+						],
+						"description": "The provider transitions the transfer to STARTED and returns the dataAddress (endpoint + access token). Must be authorized by the PROVIDER trust JWT (only the transfer's owning org may start it). The Tests tab rewrites the endpoint host from prov_net to prov_base so Postman can reach it from the host.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": [\n    \"https://w3id.org/dspace/2025/1/context.jsonld\"\n  ],\n  \"@type\": \"TransferStartMessage\",\n  \"consumerPid\": \"{{consumer_pid}}\",\n  \"providerPid\": \"{{provider_pid}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/dataspace/transfers/{{provider_pid_enc}}/start?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "D3. Fetch the data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status 200', () => pm.response.to.have.status(200));",
+									"const j = pm.response.json();",
+									"const items = (j.itemListElement) || [];",
+									"pm.test('at least one consignment returned', () => pm.expect(items.length).to.be.at.least(1));",
+									"console.log('pulled', items.length, 'consignment(s)');"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"description": "Consumer pulls the consignments from the provider data plane using the provider-issued access token. Returns a schema.org ItemList of Consignment records.",
+						"url": "{{data_endpoint}}&consumerPid={{consumer_pid}}&type={{dataset_type}}"
+					}
+				}
+			]
+		}
+	],
+	"variable": []
+}
