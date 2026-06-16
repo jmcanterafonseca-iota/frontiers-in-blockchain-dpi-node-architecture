@@ -1,5 +1,30 @@
-curl --location 'http://localhost:3010/aig' \
+#!/usr/bin/env bash
+# =============================================================================
+# create-consignments.sh — Write two Consignment vertices into the provider's
+# Auditable Item Graph (demonstration of the AIG; the dataspace pull serves the
+# dataspace-example-app's own consignments, not these).
+#
+# Post-#203: /aig requires auth (Bearer session token). Login is email+password
+# only on a single-org node; the org is auto-injected, ?organization is optional.
+# =============================================================================
+set -euo pipefail
+
+PROVIDER_HOST="${PROVIDER_HOST:-http://localhost:3010}"
+PROVIDER_CONTAINER="${PROVIDER_CONTAINER:-dpi_node_provider}"
+PROVIDER_EMAIL="${PROVIDER_EMAIL:-admin-provider@node}"
+PROVIDER_PASSWORD="${PROVIDER_PASSWORD:-1234-A-1234-b-1234}"
+
+SESS=$(curl -sS -i -X POST "${PROVIDER_HOST}/authentication/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"email\":\"${PROVIDER_EMAIL}\",\"password\":\"${PROVIDER_PASSWORD}\"}" \
+    | grep -i '^set-cookie:' | grep -oE 'access_token=[^;]+' | head -1 | cut -d= -f2-)
+[ -n "$SESS" ] || { echo "login failed"; exit 1; }
+ORG_ENC=$(docker exec "${PROVIDER_CONTAINER}" sh -c 'cat /var/lib/twin/engine-state.json' 2>/dev/null \
+    | jq -r '.nodeOrganizationId // empty' | jq -rR '@uri')
+
+curl --location "${PROVIDER_HOST}/aig?organization=${ORG_ENC}" \
 --header 'Content-Type: application/json' \
+--header "Authorization: Bearer ${SESS}" \
 --data-raw '{
     "@context": [
         "https://schema.twindev.org/aig/",
@@ -113,7 +138,9 @@ curl --location 'http://localhost:3010/aig' \
     }
 }'
 
-curl --location 'http://localhost:3010/aig' \
+curl --location "${PROVIDER_HOST}/aig?organization=${ORG_ENC}" \
+--header 'Content-Type: application/json' \
+--header "Authorization: Bearer ${SESS}" \
 --data-raw '{
     "@context": [
         "https://schema.twindev.org/aig/",

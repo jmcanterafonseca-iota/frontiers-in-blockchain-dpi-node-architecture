@@ -39,18 +39,26 @@ export async function extensionInitialise(
 		}
 	];
 
+	// This is a pure CONSUMER node: it hosts no datasets of its own. The federated
+	// catalogue it must read is the PROVIDER's, reached via the remote RestClient.
+	// Make that remote client the DEFAULT so the dataspace control plane (whose
+	// negotiateAgreement does federatedCatalogue.get(datasetId) to validate the
+	// offer) resolves the dataset from the provider, not from the empty local
+	// catalogue. The local Service is kept only so its REST routes still exist.
 	nodeEngineConfig.types.federatedCatalogueComponent = [
-		{
-			type: FederatedCatalogueComponentType.Service,
-			restPath: "federated-catalogue",
-			isDefault: true
-		},
 		{
 			type: FederatedCatalogueComponentType.RestClient,
 			options: {
-				endpoint: "http://host.docker.internal:3000"
+				// The consumer reads the PROVIDER node's federated catalogue across the
+				// docker network, so this is the provider container name.
+				endpoint: "http://dpi_node_provider:3000"
 			},
-			features: ["remote"]
+			features: ["remote"],
+			isDefault: true
+		},
+		{
+			type: FederatedCatalogueComponentType.Service,
+			restPath: "federated-catalogue"
 		}
 	];
 
@@ -66,7 +74,9 @@ export async function extensionInitialise(
 		{
 			type: DataspaceControlPlaneComponentType.RestClient,
 			options: {
-				endpoint: "http://host.docker.internal:3000"
+				// Default remote control-plane endpoint (provider container). Per-call the
+				// consumer overrides this with the providerEndpoint resolved from the catalogue.
+				endpoint: "http://dpi_node_provider:3000"
 			},
 			features: ["remote"],
 			isMultiInstance: true
@@ -86,6 +96,37 @@ export async function extensionInitialise(
 			type: DataspaceDataPlaneComponentType.RestClient,
 			features: ["remote"],
 			isMultiInstance: true
+		}
+	];
+
+	// When the consumer initiates a contract negotiation, the PNP
+	// (sendRequestToProvider) builds a trust token whose credentialSubject is the
+	// policy data returned by the Policy Information Point. With no PIP source the
+	// PIP returns {} and the VC generator (info?.subject ?? {id}) keeps that empty
+	// object, so verifiableCredentialCreate fails with guard.objectValue on an empty
+	// subject. A static public source gives the consumer a non-empty subject so the
+	// negotiation trust token can be minted. (The empty-policyData -> empty-subject
+	// path is a platform robustness gap; this static source is the supported
+	// config-level workaround.)
+	nodeEngineConfig.types.rightsManagementPolicyInformationSourceComponent = [
+		{
+			type: "static",
+			options: {
+				config: {
+					information: [
+						{
+							accessMode: "public",
+							objects: {
+								"urn:dpi:consumer-profile": {
+									"@context": "https://www.w3.org/ns/odrl.jsonld",
+									"@type": "Party",
+									purpose: "data-consumption"
+								}
+							}
+						}
+					]
+				}
+			}
 		}
 	];
 }
@@ -177,7 +218,7 @@ export function consumerClientInitialiser(
  */
 export function generateRestRoutes(baseRouteName: string, componentName: string): IRestRoute[] {
 	const consumerClientRoute: IRestRoute<
-		{ body: { query: { agreementId: string } } },
+		{ query: { agreementId: string } },
 		{ body: unknown }
 	> = {
 		operationId: "consumerClient",
@@ -250,18 +291,17 @@ export async function negotiate(
  * @param httpRequestContext The request context for the API.
  * @param componentName The name of the component to use in the routes.
  * @param request The request.
- * @param request.body The body
- * @param request.body.query query
- * @param request.body.query.agreementId agrementId
+ * @param request.query The query string params.
+ * @param request.query.agreementId The agreement id to fetch data for.
  * @returns The response object with additional http response properties.
  */
 export async function consumerGetData(
 	httpRequestContext: IHttpRequestContext,
 	componentName: string,
-	request: { body: { query: { agreementId: string } } }
+	request: { query: { agreementId: string } }
 ): Promise<{ body: unknown }> {
 	const component = ComponentFactory.get<IConsumerClientComponent>(componentName);
-	const result = await component.getData(request.body.query.agreementId);
+	const result = await component.getData(request.query.agreementId);
 
 	return {
 		body: result
