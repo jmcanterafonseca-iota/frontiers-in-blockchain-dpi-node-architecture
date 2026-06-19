@@ -20,9 +20,7 @@ import {
 } from "@twin.org/dataspace-models";
 import { LogLevel, type ILoggingComponent } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import type {
-	IDataspaceProtocolDataset
-} from "@twin.org/standards-dataspace-protocol";
+import type { IDataspaceProtocolDataset } from "@twin.org/standards-dataspace-protocol";
 import type { IActivityStreamsActivity } from "@twin.org/standards-w3c-activity-streams";
 import type { ITestAppConstructorOptions } from "./ITestAppConstructorOptions.js";
 
