@@ -15,3 +15,14 @@ Fetches the changesets of an AIG and prints the notarization id and verification
 ```sh
 ./scripts/get-aig.sh <email> <password> <aig-id>
 ```
+
+## Registering a dataset
+
+
+## Querying the details of a dataset
+
+
+## Perform a negotiation
+
+## Retrieve data
+

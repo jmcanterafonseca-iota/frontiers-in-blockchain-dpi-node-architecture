@@ -199,19 +199,6 @@ export class TestDataspaceDataPlaneApp implements IDataspaceApp {
 	}
 
 	/**
-	 * Datasets handled by this DS App.
-	 * @param dataset the Dataset
-	 * @returns Datasets handled.
-	 */
-	public async datasetsHandled(
-		dataset: IDataspaceProtocolDataset
-	): Promise<IDataspaceProtocolDataset[]> {
-		// Post-#203 (organization identifiers) the platform bakes ?organization=<org-did>
-		// into the distribution URLs at publish time, no app-side URL mutation needed.
-		return [dataset];
-	}
-
-	/**
 	 * Handle Activity.
 	 * @param activity Activity
 	 * @returns Activity processing result

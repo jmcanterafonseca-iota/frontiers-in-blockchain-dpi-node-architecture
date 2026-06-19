@@ -200,12 +200,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 					token
 				);
 
-				await this._logging.log({
-					level: LogLevel.Debug,
-					message: `DatasetId: ${datasetId}, Policy: ${datasetPolicyId}, Endpoint URL: ${providerEndpoint}`,
-					source: this.className()
-				});
-
 				const negotiationCallbackId = `negotiation-${new Date().toISOString()}`;
 
 				this._dataspaceControlPlane.registerNegotiationCallback(negotiationCallbackId, {
