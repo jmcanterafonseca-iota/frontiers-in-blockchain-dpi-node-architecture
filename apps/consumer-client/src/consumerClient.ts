@@ -3,9 +3,7 @@
 
 /* eslint-disable jsdoc/require-jsdoc */
 /* eslint-disable no-restricted-syntax */
-/* eslint-disable @typescript-eslint/naming-convention */
 
-import { HttpUrlHelper } from "@twin.org/api-models";
 import { ContextIdKeys, ContextIdStore, type IContextIds } from "@twin.org/context";
 import { ArrayHelper, ComponentFactory, Is } from "@twin.org/core";
 import {
@@ -36,11 +34,11 @@ import type { IConsumerClientConstructorOptions } from "./IConsumerClientConstru
  * Test App Activity Handler.
  */
 export class ConsumerClient implements IConsumerClientComponent {
-	// This consumer node's own address on the docker network. The provider calls back
-	// here during negotiation/transfer, so it must be the consumer container name, NOT
-	// host.docker.internal (which would point the provider at the host, not the consumer).
-	private readonly _CONSUMER_ENDPOINT = "http://dpi.consumer:3000";
-
+	// This node's own callback address (the provider calls back here during
+	// negotiation/transfer) is no longer passed by this client. Post the publicOrigin
+	// context change the platform reads it from the request context
+	// (HttpContextIdKeys.PublicOrigin = this node's DPI_NODE_PUBLIC_ORIGIN env), so the
+	// consumer node must set DPI_NODE_PUBLIC_ORIGIN to its docker-network address.
 	private readonly _logging: ILoggingComponent;
 
 	private readonly _dataspaceControlPlane: IDataspaceControlPlaneComponent;
@@ -151,14 +149,9 @@ export class ConsumerClient implements IConsumerClientComponent {
 				const providerEndpointTransfer = new URL(providerEndpoint);
 				providerEndpointTransfer.pathname += "dataspace";
 
-				// Callbacks route by the cleartext org DID, not an encrypted tenant token.
-				// This is the CONSUMER's own control-plane path (restPath above).
-				const consumerTransferCallback = HttpUrlHelper.addQueryStringParam(
-					`${this._CONSUMER_ENDPOINT}/dataspace-control-plane`,
-					ContextIdKeys.Organization,
-					consumerIdentity
-				);
-
+				// prepareTransfer no longer takes a consumer callback address; the platform
+				// reads it from the request context (HttpContextIdKeys.PublicOrigin =
+				// this node's DPI_NODE_PUBLIC_ORIGIN).
 				const transferResult = await this._dataspaceControlPlane.prepareTransfer(
 					agreementId,
 					providerEndpointTransfer.toString(),
