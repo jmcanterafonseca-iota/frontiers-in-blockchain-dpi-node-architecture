@@ -2,17 +2,30 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONSIGNMENTS_DIR="$SCRIPT_DIR/../consignments"
+AUTHN_FILE="$SCRIPT_DIR/../participants/provider-authn.json"
 BASE_URL="${BASE_URL:-http://localhost:3010}"
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $(basename "$0") <email> <password>" >&2
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+if [ "$#" -eq 2 ]; then
+    EMAIL="$1"
+    PASSWORD="$2"
+elif [ "$#" -eq 0 ]; then
+    if [ ! -f "$AUTHN_FILE" ]; then
+        echo "Error: credentials file not found: $AUTHN_FILE" >&2
+        exit 1
+    fi
+    EMAIL=$(jq -r '.email' "$AUTHN_FILE")
+    PASSWORD=$(jq -r '.password' "$AUTHN_FILE")
+else
+    echo "Usage: $(basename "$0") [email password]" >&2
     exit 1
 fi
 
-EMAIL="$1"
-PASSWORD="$2"
-
-echo "Authenticating..."
+echo -e "Authenticating as ${YELLOW}$EMAIL${RESET}..."
 cookie=$(curl --silent --location "$BASE_URL/authentication/login" \
     --header 'Content-Type: application/json' \
     --data-raw "{\"email\": \"$EMAIL\", \"password\": \"$PASSWORD\"}" \
