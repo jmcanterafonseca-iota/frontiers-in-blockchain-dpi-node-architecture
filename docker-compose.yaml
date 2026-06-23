@@ -30,7 +30,7 @@ services:
     # Published post-refactor image (organization-identifiers #19/#203). next.56 carries
     # node-core 0.0.3-next.56, rights-management-pnp next.51 (provider-org callback fix #181)
     # and federated-catalogue next.21 (object-form accessService bake fix #88). Verified 2026-06-16.
-    image: twinfoundation/twin-node:0.0.3-next.64
+    image: twinfoundation/twin-node:0.0.3-next.66
     # Local build (only needed when Docker Hub lags the refactor — kept for reference):
     # build:
     #   context: ../twin-node
@@ -56,7 +56,7 @@ services:
 
   dpi-node-consumer:
     # See dpi-node-provider note — published post-refactor image.
-    image: twinfoundation/twin-node:0.0.3-next.64
+    image: twinfoundation/twin-node:0.0.3-next.66
     # build:
     #   context: ../twin-node
     #   dockerfile: apps/node/tests/kenyaCommunityUseCaseDefaultArbiter/Dockerfile
