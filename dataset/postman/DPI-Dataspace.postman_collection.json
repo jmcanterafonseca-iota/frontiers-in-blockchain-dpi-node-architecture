@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "dpi-dataspace-2node",
 		"name": "DPI Dataspace (2-node) Full Flow",
-		"description": "End-to-end DSP data sharing across two TWIN nodes (provider :3010, consumer :3020) for the frontiers-in-blockchain-dpi-node-architecture demo. Flow: provider publishes an ODRL offer + dataset, consumer discovers it, negotiates a contract to FINALIZED (via the consumer-client extension), then requests + starts a pull transfer and fetches the data. Each request's Tests tab extracts the value the next one needs. Post-#203 (organization identifiers): login is email+password only; other routes carry ?organization=<org-did> and the caller is identified by a trust JWT.",
+		"description": "End-to-end DSP data sharing across two TWIN nodes (provider :3010, consumer :3026) for the frontiers-in-blockchain-dpi-node-architecture demo. Flow: provider publishes an ODRL offer + dataset, consumer discovers it, negotiates a contract to FINALIZED (via the consumer-client extension), then pulls the data with a single consumer-client query-data call. The provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true, so query-data drives request -> provider auto-start -> start callback -> consumer pull in one step (the old manual two-step transfer start is incompatible with auto-start mode). Each request's Tests tab extracts the value the next one needs. Post-#203 (organization identifiers): login is email+password only; other routes carry ?organization=<org-did> and the caller is identified by a trust JWT.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -73,7 +73,7 @@
 								"value": "access_token={{prov_session_jwt}}"
 							}
 						],
-						"description": "Self-issued trust JWT for the provider org. Used to authorize the provider's start of the transfer (D2).",
+						"description": "Self-issued trust JWT for the provider org. Not needed by the auto-start query-data flow (the provider mints its own credential when it auto-starts the transfer); kept for completeness / manual DSP calls.",
 						"body": {
 							"mode": "raw",
 							"raw": "{\n  \"subject\": {\n    \"id\": \"{{prov_did}}\"\n  }\n}",
@@ -231,7 +231,7 @@
 								"value": "access_token={{cons_session_jwt}}"
 							}
 						],
-						"description": "Self-issued trust JWT for the consumer org. Identifies the consumer to the provider on the transfer request (D1) and the catalogue query (C1).",
+						"description": "Self-issued trust JWT for the consumer org. Identifies the consumer to the provider on the catalogue query (C1).",
 						"body": {
 							"mode": "raw",
 							"raw": "{\n  \"subject\": {\n    \"id\": \"{{cons_did}}\"\n  }\n}",
@@ -338,113 +338,7 @@
 			"name": "D. Transfer + retrieve",
 			"item": [
 				{
-					"name": "D1. Request transfer (consumer -> provider)",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"// Fresh consumerPid for this transfer.",
-									"pm.environment.set('consumer_pid', 'urn:uuid:' + pm.variables.replaceIn('{{$guid}}'));"
-								]
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"const j = pm.response.json();",
-									"pm.test('providerPid returned', () => pm.expect(j.providerPid).to.be.a('string'));",
-									"if (j.providerPid) {",
-									"    pm.environment.set('provider_pid', j.providerPid);",
-									"    pm.environment.set('provider_pid_enc', encodeURIComponent(j.providerPid));",
-									"    console.log('provider_pid =', j.providerPid);",
-									"}"
-								]
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{cons_trust_jwt}}"
-							}
-						],
-						"description": "Consumer asks the provider to transfer data for the finalized agreement (pull mode). A fresh consumerPid is generated in the Pre-request tab. Authorized by the consumer trust JWT. Captures providerPid.",
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"@context\": [\n    \"https://w3id.org/dspace/2025/1/context.jsonld\"\n  ],\n  \"@type\": \"TransferRequestMessage\",\n  \"agreementId\": \"{{agreement_id}}\",\n  \"consumerPid\": \"{{consumer_pid}}\",\n  \"callbackAddress\": \"{{cons_net}}/dataspace-control-plane?organization={{cons_did}}\",\n  \"format\": \"HttpData-PULL\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{prov_base}}/dataspace/transfers/request?organization={{prov_did}}"
-					}
-				},
-				{
-					"name": "D2. Provider starts transfer",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"const j = pm.response.json();",
-									"pm.test('TransferStartMessage', () => pm.expect(j['@type']).to.eql('TransferStartMessage'));",
-									"pm.test('dataAddress present', () => pm.expect(j.dataAddress).to.not.be.undefined);",
-									"if (j.dataAddress) {",
-									"    // The provider bakes its docker-network address (prov_net) into the endpoint.",
-									"    // Rewrite it to prov_base so Postman (on the host) can reach it.",
-									"    const provNet = pm.environment.get('prov_net');",
-									"    const provBase = pm.environment.get('prov_base');",
-									"    let ep = j.dataAddress.endpoint;",
-									"    if (provNet && provBase) ep = ep.split(provNet).join(provBase);",
-									"    pm.environment.set('data_endpoint', ep);",
-									"    const auth = (j.dataAddress.endpointProperties || []).find(p => p.name === 'authorization');",
-									"    if (auth) pm.environment.set('access_token', auth.value);",
-									"    console.log('data_endpoint =', ep);",
-									"}"
-								]
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{prov_trust_jwt}}"
-							}
-						],
-						"description": "The provider transitions the transfer to STARTED and returns the dataAddress (endpoint + access token). Must be authorized by the PROVIDER trust JWT (only the transfer's owning org may start it). The Tests tab rewrites the endpoint host from prov_net to prov_base so Postman can reach it from the host.",
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"@context\": [\n    \"https://w3id.org/dspace/2025/1/context.jsonld\"\n  ],\n  \"@type\": \"TransferStartMessage\",\n  \"consumerPid\": \"{{consumer_pid}}\",\n  \"providerPid\": \"{{provider_pid}}\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{prov_base}}/dataspace/transfers/{{provider_pid_enc}}/start?organization={{prov_did}}"
-					}
-				},
-				{
-					"name": "D3. Fetch the data",
+					"name": "D1. Query data (consumer-client, provider auto-start)",
 					"event": [
 						{
 							"listen": "test",
@@ -453,7 +347,7 @@
 								"exec": [
 									"pm.test('status 200', () => pm.response.to.have.status(200));",
 									"const j = pm.response.json();",
-									"const items = (j.itemListElement) || [];",
+									"const items = ((j.itemList || {}).itemListElement) || [];",
 									"pm.test('at least one consignment returned', () => pm.expect(items.length).to.be.at.least(1));",
 									"console.log('pulled', items.length, 'consignment(s)');"
 								]
@@ -461,15 +355,28 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [
 							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Cookie",
+								"value": "access_token={{cons_session_jwt}}"
 							}
 						],
-						"description": "Consumer pulls the consignments from the provider data plane using the provider-issued access token. Returns a schema.org ItemList of Consignment records.",
-						"url": "{{data_endpoint}}&consumerPid={{consumer_pid}}&type={{dataset_type}}"
+						"description": "Single-call transfer + pull driven by the consumer-client extension. The provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true, so this one call drives request -> provider auto-start -> start callback -> consumer pull and returns the data. Authorized by the consumer session cookie. Returns { itemList: { @context, type: 'ItemList', itemListElement: [...] } }; a successful pull returns 2 consignments. NOTE: the provider's auto-start mints a verifiable credential on IOTA testnet (runProviderStart), which is occasionally flaky (iotaIdentityConnector.createVerifiableCredentialFailed). If query-data times out (it can hang until a stalled-transfer cleanup fires, minutes later), simply retry — it is environmental testnet flakiness, not a config error.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"agreementId\": \"{{agreement_id}}\",\n  \"entityType\": \"{{dataset_type}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{cons_base}}/consumer-client/query-data"
 					}
 				}
 			]

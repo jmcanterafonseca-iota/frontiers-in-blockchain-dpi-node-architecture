@@ -66,7 +66,11 @@ export async function extensionInitialise(
 		{
 			type: DataspaceControlPlaneComponentType.Service,
 			options: {
-				config: {}
+				// callbackPath MUST match restPath below so the callbackAddress this consumer advertises
+				// (<publicOrigin>/<callbackPath>) points at its own control-plane mount; otherwise the
+				// provider POSTs transfer callbacks (e.g. the auto-start TransferStartMessage) to the wrong
+				// path and the consumer 404s.
+				config: { callbackPath: "dataspace" }
 			},
 			restPath: "dataspace",
 			isDefault: true
@@ -194,6 +198,14 @@ export function consumerClientInitialiser(
 
 						federatedCatalogueComponentType: engineCore.getRegisteredInstanceType(
 							"federatedCatalogueComponent",
+							["remote"]
+						),
+
+						// The provider's data plane is reached via the remote RestClient. Resolve its
+						// registered engine instance type ("dataspace-data-plane-rest-client") so getData's
+						// ComponentFactory.create uses the right name instead of the bare enum value.
+						dataspaceDataPlaneOfDataProviderComponentType: engineCore.getRegisteredInstanceType(
+							"dataspaceDataPlaneComponent",
 							["remote"]
 						)
 					},

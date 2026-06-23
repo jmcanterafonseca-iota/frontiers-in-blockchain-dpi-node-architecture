@@ -1,5 +1,8 @@
 # frontiers-in-blockchain-dpi-node-architecture
 
+> Created: 2026-06-19
+> Last updated: 2026-06-23
+
 Repo with datasets and materials to run an experiment using the DPI Nodes described by the Frontiers in Blockchain paper
 
 ## What's included
@@ -53,7 +56,7 @@ After bootstrap has been perform provider and consumer as organizations will hav
 docker compose up -d
 ```
 
-Provider's Node will listen to host's port `3010` and Consumer's Node to host's port `3020`. The database will listen to host's port `3333` and each Node  has its own separate database, `dpi_provider` and `dpi_consumer` respectively.
+Provider's Node will listen to host's port `3010` and Consumer's Node to host's port `3026`. The database will listen to host's port `3333` and each Node  has its own separate database, `dpi_provider` and `dpi_consumer` respectively.
 
 ## Scenario
 
@@ -67,8 +70,6 @@ To reproduce the scenario . The steps to be taken are:
 
 4. Register the offered dataset that will allow the data consumer to request a negotiation for consignments. Register the data sharing policy.
 
-5. Negotiate as a Consumer using the Eclipse Dataspace Protocol
+5. Negotiate as a Consumer using the Eclipse Dataspace Protocol (via `POST /consumer-client/negotiate`).
 
-6. Start a data transfer as a consumer through the Dataspace Protocol
-
-7. Retrieve the data using a regular REST call.
+6. Transfer and retrieve the data in a single consumer-client call (`POST /consumer-client/query-data`). The provider runs `DPI_NODE_DATASPACE_AUTO_START_TRANSFERS="true"`, so this one call drives the transfer request, the provider's auto-start, the start callback, and the consumer-side pull, returning the data. See [`dataset/scripts/run-flow.sh`](./dataset/scripts/run-flow.sh) for the end-to-end automation and [`dataset/postman/README.md`](./dataset/postman/README.md) for the Postman walkthrough.

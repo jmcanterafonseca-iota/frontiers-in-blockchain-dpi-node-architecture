@@ -1,4 +1,17 @@
-# Scripts 
+# Scripts
+
+> Created: 2026-06-19
+> Last updated: 2026-06-23
+
+## End-to-end flow
+
+`run-flow.sh` runs the whole 2-node dataspace flow against a running stack: provider provisioning (ODRL offer + dataset), consumer negotiation (`POST /consumer-client/negotiate`), then transfer + pull in a single consumer-client call (`POST /consumer-client/query-data`). The provider runs `DPI_NODE_DATASPACE_AUTO_START_TRANSFERS="true"`, so `query-data` drives request, provider auto-start, start callback, and consumer pull in one step.
+
+```sh
+./dataset/scripts/run-flow.sh
+```
+
+The consumer is reached at `http://localhost:3026` by default (`CONSUMER_HOST`); the provider at `http://localhost:3010` (`PROVIDER_HOST`). If `query-data` times out, retry: the provider's auto-start mints a verifiable credential on IOTA testnet, which is occasionally flaky.
 
 ## Creating consignments
 
