@@ -1,7 +1,7 @@
 # DPI Dataspace (2-node) Postman Walkthrough
 
 > Created: 2026-06-19
-> Last updated: 2026-06-23
+> Last updated: 2026-06-24
 
 End-to-end DSP data sharing across **two** TWIN nodes (a provider and a consumer) for the `frontiers-in-blockchain-dpi-node-architecture` demo. Two files in this directory:
 
@@ -16,7 +16,7 @@ Every request below has also been verified by running it as a raw `curl` against
 
 ## Prerequisites
 
-1. **Stack up on the published image.** `docker-compose.yaml` pins `twinfoundation/twin-node:0.0.3-next.56` (carries the organization-identifiers refactor `#19/#203`). Provider is published on host port `3010`, consumer on `3026`.
+1. **Stack up on the published image.** `docker-compose.yaml` pins `twinfoundation/twin-node:0.0.3-next.56` (carries the organization-identifiers refactor `#19/#203`). Provider is published on host port `3010`, consumer on `3020`.
 
 2. **Both nodes bootstrapped.** Bootstrap creates each node's IOTA identity, organization identity (with a `trust-assertion` verification method), and admin user:
    ```sh
@@ -46,7 +46,7 @@ Pre-filled in the environment JSON. Overwrite per your setup.
 | Var | Value (this demo) | Notes |
 |---|---|---|
 | `prov_base` | `http://localhost:3010` | provider node, from the host |
-| `cons_base` | `http://localhost:3026` | consumer node, from the host |
+| `cons_base` | `http://localhost:3020` | consumer node, from the host |
 | `prov_net` | `http://dpi_node_provider:3000` | provider's address on the docker network (baked into the dataset endpoint) |
 | `cons_net` | `http://dpi_node_consumer:3000` | consumer's address on the docker network (transfer callback) |
 | `prov_email` / `cons_email` | `admin-provider@node` / `admin@node` | from `.env.bootstrap.*` |
@@ -155,7 +155,7 @@ The base path is `/dataspace` on the provider (the consumer renames its own cont
 ```json
 { "@context": ["https://w3id.org/dspace/2025/1/context.jsonld"], "@type": "CatalogRequestMessage", "filter": [] }
 ```
-Illustrative: the consumer reads the provider's catalogue and sees the dataset. The filter is empty because this node registers no catalogue filter handlers (a `FilterByMetadata` filter would return `factory.noGet`); the consumer-client itself also queries unfiltered. Expect `200` with the dataset present and its `endpointURL` baked with `?organization=`.
+Illustrative: the consumer reads the provider's catalogue and sees the dataset. This raw request uses an empty filter, but the provider now registers a `filter-by-metadata` handler (via `DPI_NODE_FEDERATED_CATALOGUE_FILTERS="filter-by-metadata"`), and the consumer-client filters the catalogue by `dcterms:type` using a `FilterByMetadata` filter. Expect `200` with the dataset present and its `endpointURL` baked with `?organization=`.
 
 ### C2. Negotiate (consumer-client)
 `POST {{cons_base}}/consumer-client/negotiate`, header `Cookie: access_token={{cons_session_jwt}}`, body `{}`.
@@ -178,7 +178,7 @@ The response shape is:
 ```
 Expect `200` with `itemList.itemListElement.length >= 1` (2 consignments in this demo).
 
-> **IOTA testnet caveat:** the provider's auto-start mints a verifiable credential on IOTA testnet (`runProviderStart`), which is occasionally flaky (error `iotaIdentityConnector.createVerifiableCredentialFailed`). When it fails, `query-data` hangs until a stalled-transfer cleanup fires (minutes later). If `query-data` times out, simply **retry**: it is environmental testnet flakiness, not a config error.
+> **`query-data` timeout caveat:** the provider's auto-start mints the transfer-start verifiable credential with its own vault key (`runProviderStart`). If that mint fails, `query-data` hangs until a stalled-transfer cleanup fires (minutes later). The deterministic cause is provisioning, not testnet flakiness: the offer assigner (and dataset publisher) must match the provider's **current** node identity. If the dataset/offer was provisioned under an identity the provider no longer controls, the provider cannot mint the start credential. Re-run `register-dataset.sh` (it resolves the provider's current `nodeOrganizationId` dynamically and uses a `twin:jsonPath` policy target), then retry.
 
 ---
 
@@ -194,5 +194,5 @@ Expect `200` with `itemList.itemListElement.length >= 1` (2 consignments in this
 | `defaultPolicyArbiter.ruleTargetNotSupported` on pull | offer permission target is a plain URL | use a `twin:jsonPath` target (`A3`/`A4`) |
 | `pullTransfersNotSupported` on pull | data-plane path not set | `DPI_NODE_DATASPACE_DATA_PLANE_PATH="dataspace"` (the base mount; entities live at `<base>/entities`) |
 | `callerNotAuthorizedAsProvider` on a manual transfer start | provider already auto-started the transfer | use the consumer-client `query-data` path (`D1`); the manual two-step start is incompatible with `DPI_NODE_DATASPACE_AUTO_START_TRANSFERS="true"` |
-| `query-data` hangs / times out | provider auto-start failed to mint a VC on IOTA testnet (`iotaIdentityConnector.createVerifiableCredentialFailed`) | retry `query-data`; it is environmental testnet flakiness, not a config error |
+| `query-data` hangs / times out | provider auto-start could not mint the transfer-start VC (the offer was provisioned under an identity the provider no longer controls) | the offer assigner must match the provider's current node identity; the provider mints the start VC with its own vault key. Re-run `register-dataset.sh` (it resolves the provider's current `nodeOrganizationId` and uses a `twin:jsonPath` target), then retry |
 | `factory.noGet` on catalogue query | a `FilterBy...` filter with no handler registered | use an empty `filter: []` (`C1`) |

@@ -1,7 +1,7 @@
 # Scripts
 
 > Created: 2026-06-19
-> Last updated: 2026-06-23
+> Last updated: 2026-06-24
 
 ## End-to-end flow
 
@@ -11,7 +11,7 @@
 ./dataset/scripts/run-flow.sh
 ```
 
-The consumer is reached at `http://localhost:3026` by default (`CONSUMER_HOST`); the provider at `http://localhost:3010` (`PROVIDER_HOST`). If `query-data` times out, retry: the provider's auto-start mints a verifiable credential on IOTA testnet, which is occasionally flaky.
+The consumer is reached at `http://localhost:3020` by default (`CONSUMER_HOST`); the provider at `http://localhost:3010` (`PROVIDER_HOST`). If `query-data` times out, the provider's auto-start could not mint the transfer-start verifiable credential, usually because the dataset/offer was provisioned under an identity the provider no longer controls. Re-run `register-dataset.sh` (it resolves the provider's current `nodeOrganizationId` dynamically and uses a `twin:jsonPath` policy target), then retry.
 
 ## Creating consignments
 

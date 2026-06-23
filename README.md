@@ -1,7 +1,7 @@
 # frontiers-in-blockchain-dpi-node-architecture
 
 > Created: 2026-06-19
-> Last updated: 2026-06-23
+> Last updated: 2026-06-24
 
 Repo with datasets and materials to run an experiment using the DPI Nodes described by the Frontiers in Blockchain paper
 
@@ -56,7 +56,7 @@ After bootstrap has been perform provider and consumer as organizations will hav
 docker compose up -d
 ```
 
-Provider's Node will listen to host's port `3010` and Consumer's Node to host's port `3026`. The database will listen to host's port `3333` and each Node  has its own separate database, `dpi_provider` and `dpi_consumer` respectively.
+Provider's Node will listen to host's port `3010` and Consumer's Node to host's port `3020`. The database will listen to host's port `3333` and each Node  has its own separate database, `dpi_provider` and `dpi_consumer` respectively.
 
 ## Scenario
 
