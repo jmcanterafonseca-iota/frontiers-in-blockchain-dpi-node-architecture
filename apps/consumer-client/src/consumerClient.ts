@@ -5,7 +5,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { ContextIdKeys, ContextIdStore, type IContextIds } from "@twin.org/context";
-import { ArrayHelper, ComponentFactory, Is } from "@twin.org/core";
+import { ComponentFactory, Is } from "@twin.org/core";
 import {
 	DataspaceTransferFormat,
 	type IDataspaceDataPlaneComponent,
@@ -15,9 +15,7 @@ import type { IFederatedCatalogueComponent } from "@twin.org/federated-catalogue
 import { type ILoggingComponent, LogLevel } from "@twin.org/logging-models";
 import {
 	DataspaceProtocolCatalogTypes,
-	type IDataspaceProtocolCatalogBase,
 	type IDataspaceProtocolDataset,
-	type IDataspaceProtocolDatasetBase,
 	type DataspaceProtocolContractNegotiationStateType,
 	type DataspaceProtocolTransferProcessStateType,
 	type IDataspaceProtocolAgreement,
@@ -329,12 +327,10 @@ export class ConsumerClient implements IConsumerClientComponent {
 		// Query the federated Catalogue
 		const catalogResponse = await this._federatedCatalogue.query(
 			[
-				/*
-					{
-						"@type": "FilterByExample",
-						"dcterms:type": this._DATASET_TYPE
-					}
-					*/
+				{
+					"@type": "FilterByMetadata",
+					"dcterms:type": datasetDataType
+				}
 			],
 			undefined,
 			undefined,
@@ -353,14 +349,10 @@ export class ConsumerClient implements IConsumerClientComponent {
 		let dataset: IDataspaceProtocolDataset | undefined;
 
 		if (Is.arrayValue(catalog.dataset)) {
-			dataset = ArrayHelper.fromObjectOrArray<IDataspaceProtocolDatasetBase>(
-				catalog.dataset
-			)[0] as IDataspaceProtocolDataset;
+			dataset = catalog.dataset[0] as IDataspaceProtocolDataset;
 		}
 		if (Is.arrayValue(catalog.catalog)) {
-			const catalogItem = ArrayHelper.fromObjectOrArray<IDataspaceProtocolCatalogBase>(
-				catalog.catalog
-			)[0];
+			const catalogItem = catalog.catalog[0];
 			if (!Is.arrayValue(catalogItem.dataset)) {
 				throw new Error(`Catalog query did not return any dataset: ${datasetDataType}`);
 			}
