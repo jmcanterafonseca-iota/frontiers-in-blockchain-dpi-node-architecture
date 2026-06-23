@@ -20,7 +20,7 @@
 # (DPI_NODE_DATASPACE_DATA_PLANE_PATH = "dataspace"); the entities resource lives at
 # <base>/entities, which the data-plane RestClient appends itself.
 #
-# Prereqs: stack up on the next.64 image, both nodes bootstrapped.
+# Prereqs: stack up on the next.66 image, both nodes bootstrapped.
 # Run from repo root: ./dataset/scripts/run-flow.sh
 # (CONSUMER_HOST defaults to :3026; override if the consumer is published elsewhere.)
 # =============================================================================
