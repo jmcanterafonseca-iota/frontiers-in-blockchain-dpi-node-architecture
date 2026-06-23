@@ -68,7 +68,7 @@ export async function extensionInitialise(
 			options: {
 				config: {}
 			},
-			restPath: "dataspace-control-plane",
+			restPath: "dataspace",
 			isDefault: true
 		},
 		{

@@ -139,7 +139,29 @@ export class ConsumerClient implements IConsumerClientComponent {
 
 					onSuspended: async (consumerPid: string, reason?: string) => {},
 
-					onTerminated: async (consumerPid: string, reason?: string) => {}
+					onTerminated: async (consumerPid: string, reason?: string) => {},
+
+					onFailed: async (consumerPid: string, reason: string) => {
+						await this._logging.log({
+							level: LogLevel.Error,
+							source: this.className(),
+							message: `Transfer Process: ${consumerPid} failed: ${reason}`
+						});
+						this._dataspaceControlPlane.unregisterTransferCallback(transferCallbackId);
+
+						reject(new Error(`Transfer Process: ${consumerPid} failed: ${reason}`));
+					},
+
+					onTimeout: async (consumerPid: string) => {
+						await this._logging.log({
+							level: LogLevel.Error,
+							source: this.className(),
+							message: `Transfer Process: ${consumerPid} timed out`
+						});
+						this._dataspaceControlPlane.unregisterTransferCallback(transferCallbackId);
+
+						reject(new Error(`Transfer Process: ${consumerPid} failed due to timeout`));
+					}
 				});
 
 				// The PROVIDER node mounts its dataspace control plane at base path
@@ -235,6 +257,15 @@ export class ConsumerClient implements IConsumerClientComponent {
 						this._dataspaceControlPlane.unregisterNegotiationCallback(negotiationCallbackId);
 
 						reject(new Error(`Negotiation: ${negotiationId} failed: ${reason}`));
+					},
+
+					onTimeout: async (negotiationId: string) => {
+						await this._logging.log({
+							level: LogLevel.Error,
+							source: this.className(),
+							message: `Negotiation: ${negotiationId} failed due to timeout`
+						});
+						reject(new Error(`Negotiation: ${negotiationId} timed out`));
 					}
 				});
 
