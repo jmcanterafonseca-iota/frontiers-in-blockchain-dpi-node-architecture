@@ -19,6 +19,7 @@ import {
 import { ConsumerClient } from "./consumerClient.js";
 import type { IConsumerClientComponent } from "./IConsumerClientComponent.js";
 import type { IConsumerClientConstructorOptions } from "./IConsumerClientConstructorOptions.js";
+import type { IConsumerRequest } from "./IConsumerRequest.js";
 
 /**
  * Initialise the  extension.
@@ -124,7 +125,6 @@ export async function extensionInitialise(
 								"urn:dpi:consumer-profile": {
 									"@context": "https://schema.org",
 									"@type": "Organization"
-									// purpose: "data-consumption"
 								}
 							}
 						}
@@ -229,10 +229,7 @@ export function consumerClientInitialiser(
  * @returns The rest routes.
  */
 export function generateRestRoutes(baseRouteName: string, componentName: string): IRestRoute[] {
-	const consumerClientRoute: IRestRoute<
-		{ body: { agreementId: string; entityType: string } },
-		{ body: unknown }
-	> = {
+	const consumerClientRoute: IRestRoute<{ body: IConsumerRequest }, { body: unknown }> = {
 		operationId: "consumerClient",
 		summary: "Get Data",
 		method: "POST",
@@ -308,17 +305,15 @@ export async function negotiate(
  * @param componentName The name of the component to use in the routes.
  * @param request The request.
  * @param request.body The body string params.
- * @param request.body.agreementId The agreement id to fetch data for.
- * @param request.body.entityType The type of entity associated with the agreementId.
  * @returns The response object with additional http response properties.
  */
 export async function consumerGetData(
 	httpRequestContext: IHttpRequestContext,
 	componentName: string,
-	request: { body: { agreementId: string; entityType: string } }
+	request: { body: IConsumerRequest }
 ): Promise<{ body: unknown }> {
 	const component = ComponentFactory.get<IConsumerClientComponent>(componentName);
-	const result = await component.getData(request.body.agreementId, request.body.entityType);
+	const result = await component.getData(request.body);
 
 	return {
 		body: result

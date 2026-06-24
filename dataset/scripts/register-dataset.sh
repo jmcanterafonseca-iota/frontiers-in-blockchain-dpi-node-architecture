@@ -55,14 +55,18 @@ fi
 echo -e "${DIM}Authenticated.${RESET}"
 echo ""
 
-# Resolve the provider's REAL node identity so the offer assigner / dataset publisher match the
-# identity the provider can actually sign as. A hardcoded DID here breaks provider-side transfer
-# auto-start: the offer assigner becomes the transfer's providerIdentity, and the provider can only
-# mint the TransferStartMessage trust VC for an identity whose key is in its own vault.
-PROVIDER_CONTAINER="${PROVIDER_CONTAINER:-dpi_node_provider}"
-PROVIDER_DID=$(docker exec "$PROVIDER_CONTAINER" sh -c 'cat /var/lib/twin/engine-state.json' 2>/dev/null | jq -r '.nodeOrganizationId // empty')
+# Resolve the provider's node identity, used as the offer assigner / dataset publisher. This must
+# match the identity the provider can actually sign as: the offer assigner becomes the transfer's
+# providerIdentity, and the provider can only mint the TransferStartMessage trust VC for an identity
+# whose key is in its own vault. Read it from the provider participant file.
+PROVIDER_FILE="$SCRIPT_DIR/../participants/provider.json"
+if [ ! -f "$PROVIDER_FILE" ]; then
+    echo -e "${RED}Provider file not found: ${PROVIDER_FILE}${RESET}" >&2
+    exit 1
+fi
+PROVIDER_DID=$(jq -r '.id // empty' "$PROVIDER_FILE")
 if [ -z "$PROVIDER_DID" ]; then
-    echo -e "${RED}Could not resolve provider identity (nodeOrganizationId) from container ${PROVIDER_CONTAINER}.${RESET}" >&2
+    echo -e "${RED}Could not resolve provider identity (.id) from ${PROVIDER_FILE}.${RESET}" >&2
     exit 1
 fi
 echo -e "${DIM}Provider identity: ${RESET}${YELLOW}${PROVIDER_DID}${RESET}"

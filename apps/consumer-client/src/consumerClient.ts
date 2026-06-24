@@ -26,16 +26,12 @@ import {
 import type { ITrustComponent } from "@twin.org/trust-models";
 import type { IConsumerClientComponent } from "./IConsumerClientComponent.js";
 import type { IConsumerClientConstructorOptions } from "./IConsumerClientConstructorOptions.js";
+import type { IConsumerRequest } from "./IConsumerRequest.js";
 
 /**
  * Test App Activity Handler.
  */
 export class ConsumerClient implements IConsumerClientComponent {
-	// This node's own callback address (the provider calls back here during
-	// negotiation/transfer) is no longer passed by this client. Post the publicOrigin
-	// context change the platform reads it from the request context
-	// (HttpContextIdKeys.PublicOrigin = this node's DPI_NODE_PUBLIC_ORIGIN env), so the
-	// consumer node must set DPI_NODE_PUBLIC_ORIGIN to its docker-network address.
 	private readonly _logging: ILoggingComponent;
 
 	private readonly _dataspaceControlPlane: IDataspaceControlPlaneComponent;
@@ -78,7 +74,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 		return "ConsumerClient";
 	}
 
-	public async getData(agreementId: string, entityType: string): Promise<unknown> {
+	public async getData(dataRequest: IConsumerRequest): Promise<unknown> {
 		// eslint-disable-next-line no-async-promise-executor
 		return new Promise<unknown>(async (resolve, reject) => {
 			try {
@@ -90,7 +86,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 
 				const token = await this._trustComponent.generate(consumerIdentity, undefined, {});
 
-				const { providerEndpoint } = await this.getDatasetDetails(entityType, token);
+				const { providerEndpoint } = await this.getDatasetDetails(dataRequest.entityType, token);
 
 				const format = DataspaceTransferFormat.HttpDataPull;
 
@@ -125,7 +121,8 @@ export class ConsumerClient implements IConsumerClientComponent {
 						);
 						const entities = await dataProviderDataPlane.getDataAssetEntities(
 							{
-								entityType
+								entityType: dataRequest.entityType,
+								entityId: dataRequest.entityId
 							},
 							consumerPid,
 							undefined,
@@ -175,10 +172,6 @@ export class ConsumerClient implements IConsumerClientComponent {
 					}
 				});
 
-				// The PROVIDER node mounts its dataspace control plane at base path
-				// "dataspace" (node default). Only the consumer renamed its own control
-				// plane to "dataspace-control-plane" via the extension restPath, so the
-				// provider-facing transfer endpoint must use "dataspace".
 				const providerEndpointTransfer = new URL(providerEndpoint);
 				providerEndpointTransfer.pathname += "dataspace";
 
@@ -186,7 +179,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 				// reads it from the request context (HttpContextIdKeys.PublicOrigin =
 				// this node's DPI_NODE_PUBLIC_ORIGIN).
 				const transferResult = await this._dataspaceControlPlane.prepareTransfer(
-					agreementId,
+					dataRequest.agreementId,
 					providerEndpointTransfer.toString(),
 					format,
 					token

@@ -27,14 +27,7 @@ services:
       - ./init:/docker-entrypoint-initdb.d
 
   dpi-node-provider:
-    # Published post-refactor image (organization-identifiers #19/#203). next.56 carries
-    # node-core 0.0.3-next.56, rights-management-pnp next.51 (provider-org callback fix #181)
-    # and federated-catalogue next.21 (object-form accessService bake fix #88). Verified 2026-06-16.
-    # Published image. next.66 adds the node-core dataspace control-plane callbackPath fix
-    # (#236/#237) on top of next.64 (dataspace next.55: cross-org implicit-trust #220,
-    # publicOrigin-from-context, provider-side auto-start + negotiation/transfer timeout
-    # callbacks #224/#225/#226; api-auth next.53 per-tenant rate-cleanup). Verified 2026-06-23.
-    image: twinfoundation/twin-node:0.0.3-next.66
+    image: twinfoundation/twin-node:0.0.3-next.67
     # Local build (only needed when Docker Hub lags the refactor — kept for reference):
     # build:
     #   context: ../twin-node
@@ -59,11 +52,7 @@ services:
       sh -c 'node src/index.js --env-prefix=DPI_NODE_'
 
   dpi-node-consumer:
-    # See dpi-node-provider note — published post-refactor image.
-    image: twinfoundation/twin-node:0.0.3-next.66
-    # build:
-    #   context: ../twin-node
-    #   dockerfile: apps/node/tests/kenyaCommunityUseCaseDefaultArbiter/Dockerfile
+    image: twinfoundation/twin-node:0.0.3-next.67
     container_name: dpi_node_consumer
     hostname: dpi.consumer
     depends_on:
