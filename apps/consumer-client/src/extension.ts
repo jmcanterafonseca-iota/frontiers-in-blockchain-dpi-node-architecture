@@ -78,11 +78,7 @@ export async function extensionInitialise(
 		},
 		{
 			type: DataspaceControlPlaneComponentType.RestClient,
-			options: {
-				// Default remote control-plane endpoint (provider container). Per-call the
-				// consumer overrides this with the providerEndpoint resolved from the catalogue.
-				endpoint: "http://dpi.provider:3000"
-			},
+			options: {},
 			features: ["remote"],
 			isMultiInstance: true
 		}

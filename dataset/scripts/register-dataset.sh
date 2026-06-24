@@ -87,9 +87,11 @@ response=$(curl --silent "$BASE_URL/rights-management/policy/admin" \
         "permission": [
             {
                 "action": "read",
-                "target": {
-                    "@type": "twin:jsonPath",
-                    "twin:jsonPathExpression": "$"
+                "refinement": {
+					"leftOperand": "twin:jsonPath",
+					"twin:jsonPathExpression": "$.destinationCountry.countryId",
+					"operator": "eq",
+					"rightOperand": "unece:CountryId#GB"
                 }
             }
         ]
@@ -135,9 +137,11 @@ response=$(curl --silent "$BASE_URL/dataspace/app-datasets" \
                     "permission": [
                         {
                             "action": "read",
-                            "target": {
-                                "@type": "twin:jsonPath",
-                                "twin:jsonPathExpression": "$"
+                            "refinement": {
+                                "leftOperand": "twin:jsonPath",
+                                "twin:jsonPathExpression": "$.destinationCountry.countryId",
+                                "operator": "eq",
+                                "rightOperand": "unece:CountryId#GB"
                             }
                         }
                     ]

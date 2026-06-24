@@ -21,13 +21,12 @@ import {
 import { ComparisonOperator, type IComparator } from "@twin.org/entity";
 import { LogLevel, type ILoggingComponent } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import type { IActivityStreamsActivity } from "@twin.org/standards-w3c-activity-streams";
-import type { ITestAppConstructorOptions } from "./ITestAppConstructorOptions.js";
 import {
 	SchemaOrgContexts,
-	SchemaOrgDataTypes,
 	SchemaOrgTypes
 } from "@twin.org/standards-schema-org";
+import type { IActivityStreamsActivity } from "@twin.org/standards-w3c-activity-streams";
+import type { ITestAppConstructorOptions } from "./ITestAppConstructorOptions.js";
 
 /**
  * Test App Activity Handler.
