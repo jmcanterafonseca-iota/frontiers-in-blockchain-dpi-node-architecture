@@ -1,4 +1,17 @@
-# Scripts 
+# Scripts
+
+> Created: 2026-06-19
+> Last updated: 2026-06-24
+
+## End-to-end flow
+
+`run-flow.sh` runs the whole 2-node dataspace flow against a running stack: provider provisioning (ODRL offer + dataset), consumer negotiation (`POST /consumer-client/negotiate`), then transfer + pull in a single consumer-client call (`POST /consumer-client/query-data`). The provider runs `DPI_NODE_DATASPACE_AUTO_START_TRANSFERS="true"`, so `query-data` drives request, provider auto-start, start callback, and consumer pull in one step.
+
+```sh
+./dataset/scripts/run-flow.sh
+```
+
+The consumer is reached at `http://localhost:3020` by default (`CONSUMER_HOST`); the provider at `http://localhost:3010` (`PROVIDER_HOST`). If `query-data` times out, the provider's auto-start could not mint the transfer-start verifiable credential, usually because the dataset/offer was provisioned under an identity the provider no longer controls. Re-run `register-dataset.sh` (it resolves the provider's current `nodeOrganizationId` dynamically and uses a `twin:jsonPath` policy target), then retry.
 
 ## Creating consignments
 

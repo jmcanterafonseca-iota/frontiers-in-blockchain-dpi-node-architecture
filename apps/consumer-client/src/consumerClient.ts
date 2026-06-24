@@ -11,7 +11,6 @@ import {
 	type IDataspaceDataPlaneComponent,
 	type IDataspaceControlPlaneComponent
 } from "@twin.org/dataspace-models";
-import { DataspaceDataPlaneComponentType } from "@twin.org/engine-types";
 import type { IFederatedCatalogueComponent } from "@twin.org/federated-catalogue-models";
 import { type ILoggingComponent, LogLevel } from "@twin.org/logging-models";
 import {
@@ -45,6 +44,11 @@ export class ConsumerClient implements IConsumerClientComponent {
 
 	private readonly _federatedCatalogue: IFederatedCatalogueComponent;
 
+	// The registered type name of the data-plane REST client used to pull data from the provider.
+	// This is the engine instance type ("dataspace-data-plane-rest-client"), NOT the component-type
+	// enum value ("rest-client"); passing the enum to ComponentFactory.create throws factory.noCreate.
+	private readonly _dataspaceDataPlaneOfDataProviderComponentType: string;
+
 	/**
 	 * Create a new instance.
 	 * @param options The constructor options.
@@ -65,6 +69,9 @@ export class ConsumerClient implements IConsumerClientComponent {
 		this._federatedCatalogue = ComponentFactory.get<IFederatedCatalogueComponent>(
 			options?.federatedCatalogueComponentType ?? "federatedCatalogue"
 		);
+
+		this._dataspaceDataPlaneOfDataProviderComponentType =
+			options?.dataspaceDataPlaneOfDataProviderComponentType ?? "dataspace-data-plane-rest-client";
 	}
 
 	public className(): string {
@@ -104,10 +111,16 @@ export class ConsumerClient implements IConsumerClientComponent {
 							reject(new Error(`No data address supplied for transfer process ${consumerPid}`));
 							return;
 						}
+						// pathPrefix:"" so the client treats the advertised channel as the data-plane base
+						// and only appends its own "/entities" route (and merges the endpoint's
+						// ?organization tenant-routing param). Without it the client would prepend its
+						// default "dataspace-data-plane" prefix and 404. Mirrors the remote control-plane
+						// create in dataspaceControlPlaneService.prepareTransfer.
 						const dataProviderDataPlane = ComponentFactory.create<IDataspaceDataPlaneComponent>(
-							DataspaceDataPlaneComponentType.RestClient,
+							this._dataspaceDataPlaneOfDataProviderComponentType,
 							{
-								endpoint
+								endpoint,
+								pathPrefix: ""
 							}
 						);
 						const entities = await dataProviderDataPlane.getDataAssetEntities(

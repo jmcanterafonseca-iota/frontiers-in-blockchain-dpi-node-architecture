@@ -55,6 +55,19 @@ fi
 echo -e "${DIM}Authenticated.${RESET}"
 echo ""
 
+# Resolve the provider's REAL node identity so the offer assigner / dataset publisher match the
+# identity the provider can actually sign as. A hardcoded DID here breaks provider-side transfer
+# auto-start: the offer assigner becomes the transfer's providerIdentity, and the provider can only
+# mint the TransferStartMessage trust VC for an identity whose key is in its own vault.
+PROVIDER_CONTAINER="${PROVIDER_CONTAINER:-dpi_node_provider}"
+PROVIDER_DID=$(docker exec "$PROVIDER_CONTAINER" sh -c 'cat /var/lib/twin/engine-state.json' 2>/dev/null | jq -r '.nodeOrganizationId // empty')
+if [ -z "$PROVIDER_DID" ]; then
+    echo -e "${RED}Could not resolve provider identity (nodeOrganizationId) from container ${PROVIDER_CONTAINER}.${RESET}" >&2
+    exit 1
+fi
+echo -e "${DIM}Provider identity: ${RESET}${YELLOW}${PROVIDER_DID}${RESET}"
+echo ""
+
 echo -e "${DIM}Creating policy...${RESET}"
 response=$(curl --silent "$BASE_URL/rights-management/policy/admin" \
     --header 'Content-Type: application/json' \
@@ -66,10 +79,14 @@ response=$(curl --silent "$BASE_URL/rights-management/policy/admin" \
         "@id": "urn:policy:test-policy-offer-1",
         "uid": "urn:policy:test-policy-offer-1",
         "target": "https://frontiers.example.org/dataset-1",
-        "assigner": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e",
+        "assigner": "'"$PROVIDER_DID"'",
         "permission": [
             {
-                "action": "use"
+                "action": "read",
+                "target": {
+                    "@type": "twin:jsonPath",
+                    "twin:jsonPathExpression": "$"
+                }
             }
         ]
     }')
@@ -105,15 +122,19 @@ response=$(curl --silent "$BASE_URL/dataspace/app-datasets" \
             "@id": "https://frontiers.example.org/dataset-1",
             "@type": "Dataset",
             "dcterms:type": "https://vocabulary.uncefact.org/Consignment",
-            "dcterms:publisher": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e",
+            "dcterms:publisher": "'"$PROVIDER_DID"'",
             "hasPolicy": [
                 {
                     "@type": "Offer",
                     "@id": "urn:policy:test-policy-offer-1",
-                    "assigner": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e",
+                    "assigner": "'"$PROVIDER_DID"'",
                     "permission": [
                         {
-                            "action": "use"
+                            "action": "read",
+                            "target": {
+                                "@type": "twin:jsonPath",
+                                "twin:jsonPathExpression": "$"
+                            }
                         }
                     ]
                 }
@@ -134,7 +155,10 @@ response=$(curl --silent "$BASE_URL/dataspace/app-datasets" \
 http_code="${response##*$'\n'}"
 body="${response%$'\n'*}"
 
-if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
+if [ "$http_code" -eq 409 ]; then
+    echo -e "${YELLOW}Warning: dataset already exists, treating as provisioned.${RESET}"
+    exit 0
+elif [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
     echo -e "${RED}Error: failed to register dataset (HTTP $http_code)${RESET}" >&2
     echo "$body" | jq . 2>/dev/null || echo "$body"
     exit 1

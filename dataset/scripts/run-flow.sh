@@ -3,26 +3,26 @@
 # run-flow.sh — End-to-end 2-node dataspace flow for the DPI demo.
 #
 #   Provider (dpi_node_provider :3010): seed ODRL offer + publish dataset.
-#   Consumer (dpi_node_consumer :3020): discover -> negotiate -> transfer -> pull.
+#   Consumer (dpi_node_consumer :3026): discover -> negotiate -> transfer -> pull.
 #
 # NEGOTIATION is driven by the consumer-client extension (POST /consumer-client/
 # negotiate), which discovers the dataset in the provider's catalogue and runs the
 # full DSP contract negotiation to FINALIZED in-process.
 #
-# TRANSFER + PULL are driven directly against the DSP transfer endpoints. The
-# consumer-client's GET /consumer-client/query-data path cannot be used for the
-# pull on this platform version: a PULL transfer has no automatic provider-side
-# start, and the provider's startTransfer returns the dataAddress in its HTTP
-# response without dispatching a TransferStartMessage to the consumer callback, so
-# the consumer-client's onStarted callback never fires. We therefore drive the
-# transfer the way the platform supports it (the same shape as tutorial 102):
-#   consumer -> provider  POST /dataspace/transfers/request   (consumer trust)
-#   provider              POST /dataspace/transfers/:pid/start (provider trust) -> dataAddress
-#   consumer              GET  <dataAddress.endpoint>          (provider-issued token)
+# TRANSFER + PULL are driven by the consumer-client extension (POST /consumer-client/
+# query-data). The provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true (#224):
+# query-data requests the transfer, the provider auto-starts and POSTs the
+# TransferStartMessage to the consumer's control-plane callback, and the
+# consumer-client's onStarted pulls the entities via the data-plane RestClient and
+# returns them in the query-data response. One call covers request -> start -> pull.
 #
-# Prereqs: stack up on the next.56 image, both nodes bootstrapped.
+# Note: the transfer channel (dataAddress.endpoint) is the data-plane BASE
+# (DPI_NODE_DATASPACE_DATA_PLANE_PATH = "dataspace"); the entities resource lives at
+# <base>/entities, which the data-plane RestClient appends itself.
+#
+# Prereqs: stack up on the next.66 image, both nodes bootstrapped.
 # Run from repo root: ./dataset/scripts/run-flow.sh
-# (CONSUMER_HOST defaults to :3020; override if the consumer is published elsewhere.)
+# (CONSUMER_HOST defaults to :3026; override if the consumer is published elsewhere.)
 # =============================================================================
 set -uo pipefail
 
@@ -31,7 +31,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROVIDER_HOST="${PROVIDER_HOST:-http://localhost:3010}"
 PROVIDER_CONTAINER="${PROVIDER_CONTAINER:-dpi_node_provider}"
 PROVIDER_EMAIL="${PROVIDER_EMAIL:-admin-provider@node}"
-CONSUMER_HOST="${CONSUMER_HOST:-http://localhost:3020}"
+CONSUMER_HOST="${CONSUMER_HOST:-http://localhost:3026}"
 CONSUMER_CONTAINER="${CONSUMER_CONTAINER:-dpi_node_consumer}"
 CONSUMER_EMAIL="${CONSUMER_EMAIL:-admin@node}"
 PASSWORD="${PASSWORD:-1234-A-1234-b-1234}"
@@ -71,43 +71,21 @@ AGID=$(echo "$NEG" | jq -r '.agreementId // empty')
 [ -n "$AGID" ] || fail "negotiate returned no agreementId: $(echo "$NEG" | head -c 300)"
 ok "negotiation FINALIZED, agreement: ${AGID}"
 
-# --- 3. Transfer request (consumer -> provider) ------------------------------
-echo ""; echo -e "${BOLD}Step 3: Request transfer (consumer -> provider)${NC}"
-CORG=$(org_did "$CONSUMER_CONTAINER"); PORG=$(org_did "$PROVIDER_CONTAINER")
-CTRUST=$(trust_jwt "$CONSUMER_HOST" "$CSESS" "$CORG"); [ -n "$CTRUST" ] || fail "consumer trust failed"
-CPID="urn:uuid:$(uuid)"
-TREQ=$(curl -sS -X POST "${PROVIDER_HOST}/dataspace/transfers/request?organization=$(enc "$PORG")" \
-	-H 'Content-Type: application/json' -H "Authorization: Bearer ${CTRUST}" \
-	-d "$(jq -n --arg ctx "$DSP_CTX" --arg ag "$AGID" --arg cp "$CPID" \
-		--arg cb "http://${CONSUMER_CONTAINER}:3000/dataspace-control-plane?organization=$(enc "$CORG")" \
-		'{"@context":[$ctx],"@type":"TransferRequestMessage",agreementId:$ag,consumerPid:$cp,callbackAddress:$cb,format:"HttpData-PULL"}')")
-PROVPID=$(echo "$TREQ" | jq -r '.providerPid // empty')
-[ -n "$PROVPID" ] || fail "transfer request returned no providerPid: $(echo "$TREQ" | head -c 300)"
-ok "transfer REQUESTED, providerPid: ${PROVPID}"
-
-# --- 4. Provider starts the transfer (PULL: returns dataAddress) -------------
-echo ""; echo -e "${BOLD}Step 4: Provider starts transfer${NC}"
-PSESS=$(login "$PROVIDER_HOST" "$PROVIDER_EMAIL"); [ -n "$PSESS" ] || fail "provider login failed"
-PTRUST=$(trust_jwt "$PROVIDER_HOST" "$PSESS" "$PORG"); [ -n "$PTRUST" ] || fail "provider trust failed"
-START=$(curl -sS -X POST "${PROVIDER_HOST}/dataspace/transfers/$(enc "$PROVPID")/start?organization=$(enc "$PORG")" \
-	-H 'Content-Type: application/json' -H "Authorization: Bearer ${PTRUST}" \
-	-d "$(jq -n --arg ctx "$DSP_CTX" --arg cp "$CPID" --arg pp "$PROVPID" \
-		'{"@context":[$ctx],"@type":"TransferStartMessage",consumerPid:$cp,providerPid:$pp}')")
-EP=$(echo "$START" | jq -r '.dataAddress.endpoint // empty')
-TOK=$(echo "$START" | jq -r '(.dataAddress.endpointProperties//[])[]|select(.name=="authorization")|.value' | head -1)
-[ -n "$EP" ] || fail "start returned no dataAddress endpoint: $(echo "$START" | head -c 300)"
-ok "transfer STARTED, data endpoint: ${EP}"
-
-# --- 5. Consumer pulls the data ----------------------------------------------
-echo ""; echo -e "${BOLD}Step 5: Consumer pulls data${NC}"
-# Pull from inside the consumer container so the provider container name resolves.
-PULL=$(docker exec "$CONSUMER_CONTAINER" sh -c \
-	"curl -sS -w '\n%{http_code}' -G '${EP}' --data-urlencode 'consumerPid=${CPID}' --data-urlencode 'type=${DATASET_TYPE}' -H 'Authorization: Bearer ${TOK}'")
-CODE=$(echo "$PULL" | tail -1); BODY=$(echo "$PULL" | sed '$d')
+# --- 3. Transfer + pull (consumer-client query-data; provider auto-start) -----
+echo ""; echo -e "${BOLD}Step 3: Transfer + pull (consumer-client; provider auto-starts the transfer)${NC}"
+# The provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true (#224), so the
+# consumer-client's query-data drives the whole transfer in one call: it requests
+# the transfer, the provider auto-starts and POSTs the TransferStartMessage to the
+# consumer callback, and the consumer-client's onStarted pulls via the data-plane
+# RestClient. (The old manual two-step start is incompatible with auto-start mode.)
+QD=$(curl -sS --max-time 150 -w "\n%{http_code}" -X POST "${CONSUMER_HOST}/consumer-client/query-data" \
+	-H 'Content-Type: application/json' -H "Cookie: access_token=${CSESS}" \
+	-d "$(jq -n --arg ag "$AGID" --arg et "$DATASET_TYPE" '{agreementId:$ag,entityType:$et}')")
+CODE=$(echo "$QD" | tail -1); BODY=$(echo "$QD" | sed '$d')
 COUNT=$(echo "$BODY" | jq '[.. | objects | select(.type=="Consignment" or .["@type"]=="Consignment")] | length' 2>/dev/null)
 echo "  HTTP ${CODE}; body (first 600 chars): $(echo "$BODY" | head -c 600)"
 { [ "$CODE" = 200 ] && [ -n "$COUNT" ] && [ "$COUNT" -ge 1 ]; } 2>/dev/null \
-	|| fail "pull did not return consignments (HTTP ${CODE})"
+	|| fail "query-data did not return consignments (HTTP ${CODE})"
 ok "pulled ${COUNT} consignment(s)"
 
 echo ""
