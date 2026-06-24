@@ -72,105 +72,156 @@ fi
 echo -e "${DIM}Provider identity: ${RESET}${YELLOW}${PROVIDER_DID}${RESET}"
 echo ""
 
+# Load the offer/policy from the participant file instead of inlining it here. Override the
+# assigner with the resolved provider identity so the policy is signable by the provider node.
+OFFER_FILE="$SCRIPT_DIR/../participants/provider-offer.json"
+if [ ! -f "$OFFER_FILE" ]; then
+    echo -e "${RED}Offer file not found: ${OFFER_FILE}${RESET}" >&2
+    exit 1
+fi
+
+OFFER_JSON=$(jq -c --arg assigner "$PROVIDER_DID" '.assigner = $assigner' "$OFFER_FILE")
+POLICY_ID=$(printf '%s' "$OFFER_JSON" | jq -r '.["@id"] // .uid // empty')
+if [ -z "$POLICY_ID" ]; then
+    echo -e "${RED}Could not determine policy id (@id/uid) from ${OFFER_FILE}.${RESET}" >&2
+    exit 1
+fi
+
+encoded_policy_id="${POLICY_ID//:/%3A}"
+encoded_policy_id="${encoded_policy_id//\//%2F}"
+
+# Detect whether the policy already exists; if so, delete it so it can be re-created cleanly.
+echo -e "${DIM}Checking whether policy ${RESET}${YELLOW}${POLICY_ID}${RESET}${DIM} exists...${RESET}"
+existing_code=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+    "$BASE_URL/rights-management/policy/admin/$encoded_policy_id" \
+    --header "Cookie: $cookie")
+
+policy_existed=false
+if [ "$existing_code" -eq 200 ]; then
+    policy_existed=true
+    echo -e "${YELLOW}Policy already exists — deleting it before re-creating.${RESET}"
+    delete_code=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+        --request DELETE \
+        "$BASE_URL/rights-management/policy/admin/$encoded_policy_id" \
+        --header "Cookie: $cookie")
+    if [ "$delete_code" -ne 200 ] && [ "$delete_code" -ne 204 ]; then
+        echo -e "${RED}Error: failed to delete existing policy (HTTP $delete_code)${RESET}" >&2
+        exit 1
+    fi
+    echo -e "${DIM}Existing policy deleted.${RESET}"
+elif [ "$existing_code" -eq 404 ]; then
+    echo -e "${DIM}Policy does not exist yet — it will be created.${RESET}"
+else
+    echo -e "${RED}Error: unexpected response while checking policy (HTTP $existing_code)${RESET}" >&2
+    exit 1
+fi
+
 echo -e "${DIM}Creating policy...${RESET}"
 response=$(curl --silent "$BASE_URL/rights-management/policy/admin" \
     --header 'Content-Type: application/json' \
     --header "Cookie: $cookie" \
     --write-out "\n%{http_code}" \
-    --data-raw '{
-        "@context": "http://www.w3.org/ns/odrl.jsonld",
-        "@type": "Offer",
-        "@id": "urn:policy:test-policy-offer-1",
-        "uid": "urn:policy:test-policy-offer-1",
-        "target": "https://frontiers.example.org/dataset-1",
-        "assigner": "'"$PROVIDER_DID"'",
-        "permission": [
-            {
-                "action": "read",
-                "refinement": {
-					"leftOperand": "twin:jsonPath",
-					"twin:jsonPathExpression": "$.destinationCountry.countryId",
-					"operator": "eq",
-					"rightOperand": "unece:CountryId#GB"
-                }
-            }
-        ]
-    }')
+    --data-raw "$OFFER_JSON")
 
 http_code="${response##*$'\n'}"
 body="${response%$'\n'*}"
 
-if [ "$http_code" -eq 409 ]; then
-    echo -e "${YELLOW}Warning: policy already exists, proceeding with dataset registration.${RESET}"
-elif [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
+if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
     echo -e "${RED}Error: failed to create policy (HTTP $http_code)${RESET}" >&2
     echo "$body" | jq . 2>/dev/null || echo "$body"
     exit 1
+fi
+
+if [ "$policy_existed" = true ]; then
+    echo -e "${BOLD}${GREEN}Policy deleted and re-created successfully.${RESET}"
 else
     echo -e "${BOLD}${GREEN}Policy created successfully.${RESET}"
 fi
 echo ""
 
+DATASET_ID="https://frontiers.example.org/dataset-1"
+encoded_dataset_id="${DATASET_ID//:/%3A}"
+encoded_dataset_id="${encoded_dataset_id//\//%2F}"
+
+# Detect whether the app-dataset association already exists; if so, delete it so the dataset can be
+# republished with the current policy/definition (a plain create would otherwise fail with 409).
+echo -e "${DIM}Checking whether dataset ${RESET}${YELLOW}${DATASET_ID}${RESET}${DIM} is already registered...${RESET}"
+existing_code=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+    "$BASE_URL/dataspace/app-datasets/$encoded_dataset_id" \
+    --header "Cookie: $cookie")
+
+dataset_existed=false
+if [ "$existing_code" -eq 200 ]; then
+    dataset_existed=true
+    echo -e "${YELLOW}Dataset already registered — deleting the app-dataset association before republishing.${RESET}"
+    delete_code=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+        --request DELETE \
+        "$BASE_URL/dataspace/app-datasets/$encoded_dataset_id" \
+        --header "Cookie: $cookie")
+    if [ "$delete_code" -ne 200 ] && [ "$delete_code" -ne 204 ]; then
+        echo -e "${RED}Error: failed to delete existing app-dataset (HTTP $delete_code)${RESET}" >&2
+        exit 1
+    fi
+    echo -e "${DIM}Existing app-dataset deleted.${RESET}"
+elif [ "$existing_code" -eq 404 ]; then
+    echo -e "${DIM}Dataset not registered yet — it will be created.${RESET}"
+else
+    echo -e "${RED}Error: unexpected response while checking dataset (HTTP $existing_code)${RESET}" >&2
+    exit 1
+fi
+
 echo -e "${DIM}Registering dataset...${RESET}"
+
+# Reuse the very same ODRL offer (loaded from provider-offer.json, assigner overridden) as the
+# dataset's hasPolicy, so the published dataset advertises exactly the policy that was created.
+# Its @context is dropped because the parent dataset document already declares one.
+DATASET_PAYLOAD=$(jq -n \
+    --arg publisher "$PROVIDER_DID" \
+    --arg datasetId "$DATASET_ID" \
+    --argjson offer "$OFFER_JSON" '
+{
+    "appId": "urn:app:dpi-frontiers",
+    "dataset": {
+        "@context": [
+            "https://w3id.org/dspace/2025/1/context.jsonld",
+            { "dcterms": "http://purl.org/dc/terms/" }
+        ],
+        "@id": $datasetId,
+        "@type": "Dataset",
+        "dcterms:type": "https://vocabulary.uncefact.org/Consignment",
+        "dcterms:publisher": $publisher,
+        "hasPolicy": [ ($offer | del(.["@context"])) ],
+        "distribution": {
+            "@id": "https://twin.example.org/distribution-1",
+            "@type": "Distribution",
+            "accessService": {
+                "@id": "urn:uuid:4aa2dcc8-4d2d-569e-d634-8394a8834d77",
+                "@type": "DataService",
+                "endpointURL": "http://dpi.provider:3000"
+            },
+            "format": "HttpData-PULL"
+        }
+    }
+}')
+
 response=$(curl --silent "$BASE_URL/dataspace/app-datasets" \
     --header 'Content-Type: application/json' \
     --header "Cookie: $cookie" \
     --write-out "\n%{http_code}" \
-    --data-raw '{
-        "appId": "urn:app:dpi-frontiers",
-        "dataset": {
-            "@context": [
-                "https://w3id.org/dspace/2025/1/context.jsonld",
-                {
-                    "dcterms": "http://purl.org/dc/terms/"
-                }
-            ],
-            "@id": "https://frontiers.example.org/dataset-1",
-            "@type": "Dataset",
-            "dcterms:type": "https://vocabulary.uncefact.org/Consignment",
-            "dcterms:publisher": "'"$PROVIDER_DID"'",
-            "hasPolicy": [
-                {
-                    "@type": "Offer",
-                    "@id": "urn:policy:test-policy-offer-1",
-                    "assigner": "'"$PROVIDER_DID"'",
-                    "permission": [
-                        {
-                            "action": "read",
-                            "refinement": {
-                                "leftOperand": "twin:jsonPath",
-                                "twin:jsonPathExpression": "$.destinationCountry.countryId",
-                                "operator": "eq",
-                                "rightOperand": "unece:CountryId#GB"
-                            }
-                        }
-                    ]
-                }
-            ],
-            "distribution": {
-                "@id": "https://twin.example.org/distribution-1",
-                "@type": "Distribution",
-                "accessService": {
-                    "@id": "urn:uuid:4aa2dcc8-4d2d-569e-d634-8394a8834d77",
-                    "@type": "DataService",
-                    "endpointURL": "http://dpi.provider:3000"
-                },
-                "format": "HttpData-PULL"
-            }
-        }
-    }')
+    --data-raw "$DATASET_PAYLOAD")
 
 http_code="${response##*$'\n'}"
 body="${response%$'\n'*}"
 
-if [ "$http_code" -eq 409 ]; then
-    echo -e "${YELLOW}Warning: dataset already exists, treating as provisioned.${RESET}"
-    exit 0
-elif [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
+if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
     echo -e "${RED}Error: failed to register dataset (HTTP $http_code)${RESET}" >&2
     echo "$body" | jq . 2>/dev/null || echo "$body"
     exit 1
 fi
 
-echo -e "${BOLD}${GREEN}Dataset registered successfully.${RESET}"
+if [ "$dataset_existed" = true ]; then
+    echo -e "${BOLD}${GREEN}Dataset deleted and republished successfully.${RESET}"
+else
+    echo -e "${BOLD}${GREEN}Dataset registered successfully.${RESET}"
+fi
 echo "$body" | jq . 2>/dev/null || echo "$body"

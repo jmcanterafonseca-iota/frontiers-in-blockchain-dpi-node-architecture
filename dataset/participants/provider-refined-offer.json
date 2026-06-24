@@ -1,0 +1,19 @@
+{
+    "@context": "http://www.w3.org/ns/odrl.jsonld",
+    "@type": "Offer",
+    "@id": "urn:policy:test-policy-offer-1",
+    "uid": "urn:policy:test-policy-offer-1",
+    "target": "https://frontiers.example.org/dataset-1",
+    "assigner": "did:iota:testnet:0xb08c76fe342eab87bb16ef6ec70274ca72d15defde7f00fc42b30fd70e6ac38e",
+    "permission": [
+        {
+            "action": "read",
+            "refinement": {
+                "operator": "eq",
+                "leftOperand": "twin:jsonPath",
+                "rightOperand": "unece:CountryId#GB",
+                "twin:jsonPathExpression": "$.destinationCountry.countryId"
+            }
+        }
+    ]
+}

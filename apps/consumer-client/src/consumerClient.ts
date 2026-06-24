@@ -96,41 +96,50 @@ export class ConsumerClient implements IConsumerClientComponent {
 						consumerPid: string,
 						message: IDataspaceProtocolTransferStartMessage
 					) => {
-						await this._logging.log({
-							level: LogLevel.Debug,
-							message: `TransferProcess: ${consumerPid} Now started: channel: ${message.dataAddress?.endpoint}`,
-							source: this.className()
-						});
-						// Retrieve the data
-						const endpoint = message.dataAddress?.endpoint;
-						if (Is.undefined(endpoint)) {
-							reject(new Error(`No data address supplied for transfer process ${consumerPid}`));
-							return;
-						}
-						// pathPrefix:"" so the client treats the advertised channel as the data-plane base
-						// and only appends its own "/entities" route (and merges the endpoint's
-						// ?organization tenant-routing param). Without it the client would prepend its
-						// default "dataspace-data-plane" prefix and 404. Mirrors the remote control-plane
-						// create in dataspaceControlPlaneService.prepareTransfer.
-						const dataProviderDataPlane = ComponentFactory.create<IDataspaceDataPlaneComponent>(
-							this._dataspaceDataPlaneOfDataProviderComponentType,
-							{
-								endpoint,
-								pathPrefix: ""
+						try {
+							await this._logging.log({
+								level: LogLevel.Debug,
+								message: `TransferProcess: ${consumerPid} Now started: channel: ${message.dataAddress?.endpoint}`,
+								source: this.className()
+							});
+							// Retrieve the data
+							const endpoint = message.dataAddress?.endpoint;
+							if (Is.undefined(endpoint)) {
+								reject(new Error(`No data address supplied for transfer process ${consumerPid}`));
+								return;
 							}
-						);
-						const entities = await dataProviderDataPlane.getDataAssetEntities(
-							{
-								entityType: dataRequest.entityType,
-								entityId: dataRequest.entityId
-							},
-							consumerPid,
-							undefined,
-							undefined,
-							token
-						);
+							// pathPrefix:"" so the client treats the advertised channel as the data-plane base
+							// and only appends its own "/entities" route (and merges the endpoint's
+							// ?organization tenant-routing param). Without it the client would prepend its
+							// default "dataspace-data-plane" prefix and 404. Mirrors the remote control-plane
+							// create in dataspaceControlPlaneService.prepareTransfer.
+							const dataProviderDataPlane = ComponentFactory.create<IDataspaceDataPlaneComponent>(
+								this._dataspaceDataPlaneOfDataProviderComponentType,
+								{
+									endpoint,
+									pathPrefix: ""
+								}
+							);
+							const entities = await dataProviderDataPlane.getDataAssetEntities(
+								{
+									entityType: dataRequest.entityType,
+									entityId: dataRequest.entityId
+								},
+								consumerPid,
+								undefined,
+								undefined,
+								token
+							);
 
-						resolve(entities);
+							resolve(entities);
+						} catch (error) {
+							await this._logging.log({
+								level: LogLevel.Error,
+								source: this.className(),
+								message: `Error while handling "onStarted": ${JSON.stringify(error)}`
+							});
+							reject(error);
+						}
 					},
 					onStateChanged: async (
 						consumerPid: string,

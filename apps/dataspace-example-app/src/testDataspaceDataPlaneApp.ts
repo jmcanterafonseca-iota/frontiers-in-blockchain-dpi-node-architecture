@@ -21,10 +21,8 @@ import {
 import { ComparisonOperator, type IComparator } from "@twin.org/entity";
 import { LogLevel, type ILoggingComponent } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import {
-	SchemaOrgContexts,
-	SchemaOrgTypes
-} from "@twin.org/standards-schema-org";
+import { SchemaOrgContexts, SchemaOrgTypes } from "@twin.org/standards-schema-org";
+import { UneceContexts, UneceTypes } from "@twin.org/standards-unece";
 import type { IActivityStreamsActivity } from "@twin.org/standards-w3c-activity-streams";
 import type { ITestAppConstructorOptions } from "./ITestAppConstructorOptions.js";
 
@@ -217,23 +215,42 @@ export class TestDataspaceDataPlaneApp implements IDataspaceApp {
 					};
 					const itemListElement: IJsonLdNodeObject[] = [];
 					for (const item of items.entries.itemListElement) {
+						if (item.annotationObject?.type === UneceTypes.Consignment) {
+							itemListElement.push(item.annotationObject);
+						}
+					}
+					ObjectHelper.propertySet(data, "itemListElement", itemListElement);
+					return { data: itemListElement };
+				}
+
+				if (
+					dataRequest.entitySet.entityType === `${UneceContexts.Namespace}${UneceTypes.Consignment}`
+				) {
+					const conditions: IComparator[] = [
+						{
+							property: "annotationObject.type",
+							value: UneceTypes.Consignment,
+							comparison: ComparisonOperator.Equals
+						}
+					];
+
+					const items = await this._auditableItemGraph.query(undefined, conditions);
+					const data = {
+						"@context": SchemaOrgContexts.Context,
+						type: SchemaOrgTypes.ItemList
+					};
+					const itemListElement: IJsonLdNodeObject[] = [];
+					for (const item of items.entries.itemListElement) {
 						itemListElement.push(item.annotationObject as IJsonLdNodeObject);
 					}
 					ObjectHelper.propertySet(data, "itemListElement", itemListElement);
 					return { data: itemListElement };
 				}
 
-				if (dataRequest.entitySet.entityType === "https://vocabulary.uncefact.org/Consignment") {
-					// Let's check what is the
-					// const policy = dataRequest.dataAsset.hasPolicy;
-					return {
-						data: []
-					};
-				}
-
 				return { data: [] };
 			}
 			case DataRequestType.QueryDataAsset:
+				// Not supported in this example
 				return { data: [] };
 		}
 	}
