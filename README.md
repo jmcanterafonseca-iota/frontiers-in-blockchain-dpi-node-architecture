@@ -42,12 +42,6 @@ node-admin.sh provider bootstrap-legacy
 node-admin.sh consumer bootstrap-legacy
 ```
 
-> Note (twin-node next.53+): the bootstrap command is `bootstrap-legacy` (the bare
-> `bootstrap` command does not exist), and the bootstrap feature flags were renamed —
-> `DPI_NODE_FEATURES` must be `"admin-user,wallet"` (the old
-> `node-identity,node-admin-user,node-wallet` names are silently ignored, which skips
-> admin-user creation and makes login fail with `userNotFound`).
-
 After bootstrap has been perform provider and consumer as organizations will have their own IOTA Identity. You can see an [example](./dataset/participants/consumer.json).
 
 1. Launch both nodes and the database.
@@ -66,10 +60,12 @@ To reproduce the scenario . The steps to be taken are:
 
 2. Retrieve the proofs that are registered onchain. See [script](./dataset//scripts/get-aig.sh).
 
-3. Register the DS App on the Provider's Node.
+3. Register the DS App on the Provider's Node. See [script](./dataset/scripts/register-dataset.sh).
 
-4. Register the offered dataset that will allow the data consumer to request a negotiation for consignments. Register the data sharing policy.
+4. Register the offered dataset that will allow the data consumer to request a negotiation for consignments. Register the data sharing policy. See [script](./dataset/scripts/register-dataset.sh).
 
-5. Negotiate as a Consumer using the Eclipse Dataspace Protocol (via `POST /consumer-client/negotiate`).
+5. Negotiate as a Consumer using the Eclipse Dataspace Protocol (via `POST /consumer-client/negotiate`). See [script](./dataset/scripts/negotiate.sh).
 
-6. Transfer and retrieve the data in a single consumer-client call (`POST /consumer-client/query-data`). The provider runs `DPI_NODE_DATASPACE_AUTO_START_TRANSFERS="true"`, so this one call drives the transfer request, the provider's auto-start, the start callback, and the consumer-side pull, returning the data. See [`dataset/scripts/run-flow.sh`](./dataset/scripts/run-flow.sh) for the end-to-end automation and [`dataset/postman/README.md`](./dataset/postman/README.md) for the Postman walkthrough.
+6. Transfer and retrieve the data in a single consumer-client call (`POST /consumer-client/query-data`). See [`dataset/scripts/get-data.sh`](./dataset/scripts/get-data.sh).
+
+See also [`dataset/postman/README.md`](./dataset/postman/README.md) for the Postman walkthrough.

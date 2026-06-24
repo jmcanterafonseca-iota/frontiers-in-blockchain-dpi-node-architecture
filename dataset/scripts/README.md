@@ -3,17 +3,9 @@
 > Created: 2026-06-19
 > Last updated: 2026-06-24
 
-## End-to-end flow
+Note: `email` and `password` are always optional parameters. 
 
-`run-flow.sh` runs the whole 2-node dataspace flow against a running stack: provider provisioning (ODRL offer + dataset), consumer negotiation (`POST /consumer-client/negotiate`), then transfer + pull in a single consumer-client call (`POST /consumer-client/query-data`). The provider runs `DPI_NODE_DATASPACE_AUTO_START_TRANSFERS="true"`, so `query-data` drives request, provider auto-start, start callback, and consumer pull in one step.
-
-```sh
-./dataset/scripts/run-flow.sh
-```
-
-The consumer is reached at `http://localhost:3020` by default (`CONSUMER_HOST`); the provider at `http://localhost:3010` (`PROVIDER_HOST`). If `query-data` times out, the provider's auto-start could not mint the transfer-start verifiable credential, usually because the dataset/offer was provisioned under an identity the provider no longer controls. Re-run `register-dataset.sh` (it resolves the provider's current `nodeOrganizationId` dynamically and uses a `twin:jsonPath` policy target), then retry.
-
-## Creating consignments
+## Provider: Creating consignments
 
 Submits all three consignments in the `consignments/` folder to the AIG service and prints the AIG id of each one created.
 
@@ -21,21 +13,50 @@ Submits all three consignments in the `consignments/` folder to the AIG service 
 ./scripts/create-all-consignments.sh <email> <password>
 ```
 
-## Retrieving an AIG
+## Provider: Retrieving an AIG
 
 Fetches the changesets of an AIG and prints the notarization id and verification method for each version, with links to the IOTA explorer.
 
 ```sh
-./scripts/get-aig.sh <email> <password> <aig-id>
+./scripts/get-aig.sh <aig-id> <email> <password>
 ```
 
-## Registering a dataset
+## Provider: Listing all the AIGs
 
+Lists all the AIGs present.
 
-## Querying the details of a dataset
+```sh
+./scripts/list-aigs.sh <aig-id> <email> <password>
+```
 
+## Provider: Registering a dataset plus Offer Policy
 
-## Perform a negotiation
+Registers the dataset concerned.
+
+```sh
+./scripts/register-dataset.sh <email> <password>
+```
+
+## Provider: Querying the details of a dataset
+
+Query the details fo the registered dataset.
+
+```sh
+./scripts/get-dataset-info.sh <email> <password>
+```
+
+## Consumer : Perform a negotiation
+
+Performs a negotiation over a dataset.
+
+```sh
+./scripts/negotiate.sh <entityType> <email> <password>
+```
 
 ## Retrieve data
 
+Retrieves the data once a negotiation has concluded successfully.
+
+```sh
+./scripts/get-data.sh <negotiationId> <entityType> <entityId> <email> <password>
+```

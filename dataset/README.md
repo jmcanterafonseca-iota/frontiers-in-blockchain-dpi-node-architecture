@@ -5,6 +5,7 @@
 * `consignments` folder contains three sample Consignments.
 * `participants` folder contains the identities of the provider and consumer participants.
 * `scripts` folder contains scripts to perform operations.
+* `postman` folder contains postman collections.
 
 ## Dataset Recipes
 
