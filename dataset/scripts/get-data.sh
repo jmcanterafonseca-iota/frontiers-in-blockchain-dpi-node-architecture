@@ -111,10 +111,10 @@ if [ "$http_code" -ne 200 ] && [ "$http_code" -ne 201 ]; then
     exit 1
 fi
 
-# Extract just the consignments (any object carrying a globalId, wherever it sits in the response)
-# and print their globalId together with the origin and destination country.
+# The response is an object whose consignments are listed under itemListElement.
+# Print each one's globalId together with the origin and destination country.
 rows=$(echo "$body" | jq -r '
-    [.. | objects | select(has("globalId"))][]
+    .itemListElement[]
     | [.globalId, (.originCountry.countryId // "-"), (.destinationCountry.countryId // "-")]
     | @tsv' 2>/dev/null)
 

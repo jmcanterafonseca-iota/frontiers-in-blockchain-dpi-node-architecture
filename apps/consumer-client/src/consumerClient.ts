@@ -131,7 +131,7 @@ export class ConsumerClient implements IConsumerClientComponent {
 								token
 							);
 
-							resolve(entities);
+							resolve(entities.itemList);
 						} catch (error) {
 							await this._logging.log({
 								level: LogLevel.Error,
