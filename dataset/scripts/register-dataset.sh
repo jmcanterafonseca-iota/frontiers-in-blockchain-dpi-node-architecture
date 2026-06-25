@@ -1,10 +1,11 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $(basename "$0") [email password]" >&2
+    echo "Usage: $(basename "$0") [offer-type] [email password]" >&2
     echo "" >&2
-    echo "  email      Login email (default: from provider-authn.json)" >&2
-    echo "  password   Login password (default: from provider-authn.json)" >&2
+    echo "  offer-type  Offer/policy to publish: 'simple' (default) or 'constrained'" >&2
+    echo "  email       Login email (default: from provider-authn.json)" >&2
+    echo "  password    Login password (default: from provider-authn.json)" >&2
     exit 1
 }
 
@@ -12,17 +13,40 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     usage
 fi
 
-if [ "$#" -ne 0 ] && [ "$#" -ne 2 ]; then
+# Optional: offer-type and/or an email+password pair.
+# Accepted argument counts:
+#   0 -> simple offer, credentials from provider-authn.json
+#   1 -> offer-type, credentials from provider-authn.json
+#   3 -> offer-type email password
+OFFER_TYPE="simple"
+EMAIL=""
+PASSWORD=""
+
+case "$#" in
+    0)
+        ;;
+    1)
+        OFFER_TYPE="$1"
+        ;;
+    3)
+        OFFER_TYPE="$1"
+        EMAIL="$2"
+        PASSWORD="$3"
+        ;;
+    *)
+        usage
+        ;;
+esac
+
+if [ "$OFFER_TYPE" != "simple" ] && [ "$OFFER_TYPE" != "constrained" ]; then
+    echo "Error: invalid offer type '$OFFER_TYPE' (expected 'simple' or 'constrained')." >&2
     usage
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTHN_FILE="$SCRIPT_DIR/../participants/provider-authn.json"
 
-if [ "$#" -eq 2 ]; then
-    EMAIL="$1"
-    PASSWORD="$2"
-else
+if [ -z "$EMAIL" ] || [ -z "$PASSWORD" ]; then
     if [ ! -f "$AUTHN_FILE" ]; then
         echo "Error: credentials file not found: $AUTHN_FILE" >&2
         exit 1
@@ -74,7 +98,12 @@ echo ""
 
 # Load the offer/policy from the participant file instead of inlining it here. Override the
 # assigner with the resolved provider identity so the policy is signable by the provider node.
-OFFER_FILE="$SCRIPT_DIR/../participants/provider-offer.json"
+if [ "$OFFER_TYPE" = "constrained" ]; then
+    OFFER_FILE="$SCRIPT_DIR/../participants/provider-constrained-offer.json"
+else
+    OFFER_FILE="$SCRIPT_DIR/../participants/provider-simple-offer.json"
+fi
+echo -e "${DIM}Using ${RESET}${YELLOW}${OFFER_TYPE}${RESET}${DIM} offer from ${OFFER_FILE}.${RESET}"
 if [ ! -f "$OFFER_FILE" ]; then
     echo -e "${RED}Offer file not found: ${OFFER_FILE}${RESET}" >&2
     exit 1

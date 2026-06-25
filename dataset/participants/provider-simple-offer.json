@@ -9,7 +9,8 @@
         {
             "action": "read",
             "target": {
-                "@type": "twin:jsonPath",
+                "source": "twin:jsonPath",
+                "@type": "AssetCollection",
                 "twin:jsonPathExpression": "$"
             }
         }

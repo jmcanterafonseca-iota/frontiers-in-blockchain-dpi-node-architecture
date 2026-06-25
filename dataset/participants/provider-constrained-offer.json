@@ -9,17 +9,16 @@
         {
             "action": "read",
             "target": {
-                "@type": "twin:jsonPath",
-                "twin:jsonPathExpression": "$"
-            },
-            "constraint": [
-                {
+                "@type": "AssetCollection",
+                "source": "twin:jsonPath",
+                "twin:jsonPathExpression": "$.itemList.itemListElement[*]",
+                "refinement": {
                     "leftOperand": "twin:jsonPath",
-                    "twin:jsonPathExpression": "$..destinationCountry.countryId",
+                    "twin:jsonPathExpression": "$.itemList.itemListElement[*].destinationCountry.countryId",
                     "operator": "eq",
                     "rightOperand": "unece:CountryId#GB"
                 }
-            ]
+            }
         }
     ]
 }
