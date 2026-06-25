@@ -196,7 +196,7 @@ export class TestDataspaceDataPlaneApp implements IDataspaceApp {
 
 		switch (dataRequest.type) {
 			case DataRequestType.DataAssetEntities: {
-				if (Is.array(dataRequest.entitySet.entityId)) {
+				if (Is.arrayValue(dataRequest.entitySet.entityId)) {
 					const entityIds = dataRequest.entitySet.entityId;
 					const conditions: IComparator[] = [];
 					// The AIG will perform an OR over the entity Ids

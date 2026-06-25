@@ -8,12 +8,18 @@
     "permission": [
         {
             "action": "read",
-            "refinement": {
-                "operator": "eq",
-                "leftOperand": "twin:jsonPath",
-                "rightOperand": "unece:CountryId#GB",
-                "twin:jsonPathExpression": "$.destinationCountry.countryId"
-            }
+            "target": {
+                "@type": "twin:jsonPath",
+                "twin:jsonPathExpression": "$"
+            },
+            "constraint": [
+                {
+                    "leftOperand": "twin:jsonPath",
+                    "twin:jsonPathExpression": "$..destinationCountry.countryId",
+                    "operator": "eq",
+                    "rightOperand": "unece:CountryId#GB"
+                }
+            ]
         }
     ]
 }
