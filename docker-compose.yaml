@@ -28,10 +28,6 @@ services:
 
   dpi-node-provider:
     image: twinfoundation/twin-node:0.0.3-next.67
-    # Local build (only needed when Docker Hub lags the refactor — kept for reference):
-    # build:
-    #   context: ../twin-node
-    #   dockerfile: apps/node/tests/kenyaCommunityUseCaseDefaultArbiter/Dockerfile
     container_name: dpi_node_provider
     hostname: dpi.provider
     depends_on:
