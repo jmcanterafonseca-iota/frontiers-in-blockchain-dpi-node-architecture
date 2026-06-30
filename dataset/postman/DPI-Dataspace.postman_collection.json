@@ -2,12 +2,12 @@
 	"info": {
 		"_postman_id": "dpi-dataspace-2node",
 		"name": "DPI Dataspace (2-node) Full Flow",
-		"description": "End-to-end DSP data sharing across two TWIN nodes (provider :3010, consumer :3020) for the frontiers-in-blockchain-dpi-node-architecture demo. Flow: provider publishes an ODRL offer + dataset, consumer discovers it, negotiates a contract to FINALIZED (via the consumer-client extension), then pulls the data with a single consumer-client query-data call. The provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true, so query-data drives request -> provider auto-start -> start callback -> consumer pull in one step (the old manual two-step transfer start is incompatible with auto-start mode). Each request's Tests tab extracts the value the next one needs. Post-#203 (organization identifiers): login is email+password only; other routes carry ?organization=<org-did> and the caller is identified by a trust JWT.",
+		"description": "End-to-end DSP data sharing across two TWIN nodes (provider, consumer) for the frontiers-in-blockchain-dpi-node-architecture demo. Flow: provider logs in, seeds consignments into the AIG, publishes an ODRL Offer (constrained per-item filter by default) + dataset; consumer negotiates a contract to FINALIZED via the consumer-client; then pulls data with a single consumer-client query-data call (the provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true). The example app serves consignments by querying the AIG, so they must be seeded (A3-A5) before the pull. Each request's Tests tab extracts the value the next one needs. prov_did/cons_did must be the live org DIDs; the offer assigner must equal the provider's org DID or the transfer cannot mint its start credential.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "A. Provider setup (one-time)",
+			"name": "A. Provider setup (login, seed AIG, publish offer + dataset)",
 			"item": [
 				{
 					"name": "A1. Login as provider",
@@ -87,14 +87,14 @@
 					}
 				},
 				{
-					"name": "A3. Create ODRL Offer",
+					"name": "A3. Seed AIG consignment 1 (dest GB)",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"type": "text/javascript",
 								"exec": [
-									"pm.test('created or already exists', () => pm.expect([201,204,409]).to.include(pm.response.code));"
+									"pm.test('created (201/200)', () => pm.expect([200,201]).to.include(pm.response.code));"
 								]
 							}
 						}
@@ -111,10 +111,124 @@
 								"value": "Bearer {{prov_session_jwt}}"
 							}
 						],
-						"description": "Seeds the offer in the Policy Administration Point. The permission target MUST be a twin:jsonPath ($ = whole record): the data-plane arbiter rejects a plain dataset-id target. Re-run returns 409 (already exists).",
+						"description": "Creates an AIG vertex whose annotationObject is consignment-1 (destination GB). The example app serves consignments by querying the AIG, so they must be seeded first. Mirrors create-all-consignments.sh.",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"@context\": \"http://www.w3.org/ns/odrl.jsonld\",\n  \"@type\": \"Offer\",\n  \"@id\": \"{{offer_id}}\",\n  \"assigner\": \"{{prov_did}}\",\n  \"target\": \"{{dataset_id}}\",\n  \"action\": \"read\",\n  \"permission\": [\n    {\n      \"action\": \"read\",\n      \"target\": {\n        \"@type\": \"twin:jsonPath\",\n        \"twin:jsonPathExpression\": \"$\"\n      }\n    }\n  ]\n}",
+							"raw": "{\n  \"@context\": [\n    \"https://schema.twindev.org/aig/\",\n    \"https://schema.twindev.org/common/\"\n  ],\n  \"type\": \"AuditableItemGraphVertex\",\n  \"annotationObject\": {\n    \"@context\": \"https://vocabulary.uncefact.org/unece-context-D23B.jsonld\",\n    \"type\": \"Consignment\",\n    \"identifier\": \"250412-001\",\n    \"globalId\": \"6PLB12345678INV2026001\",\n    \"summaryDescription\": \"Fresh chicken\",\n    \"exporterParty\": {\n      \"type\": \"TradeParty\",\n      \"identifier\": {\n        \"@type\": \"https://ref.gs1.org/voc/OrganizationID_Type-EORI\",\n        \"@value\": \"PL39000000004358Z\"\n      }\n    },\n    \"importerParty\": {\n      \"type\": \"TradeParty\",\n      \"identifier\": {\n        \"@type\": \"https://ref.gs1.org/voc/OrganizationID_Type-EORI\",\n        \"@value\": \"GB362012792073\"\n      }\n    },\n    \"includedConsignmentItem\": [\n      {\n        \"type\": \"ConsignmentItem\",\n        \"exportTypeCode\": \"1602329090\"\n      }\n    ],\n    \"originCountry\": {\n      \"countryId\": \"unece:CountryId#PL\"\n    },\n    \"destinationCountry\": {\n      \"countryId\": \"unece:CountryId#GB\"\n    },\n    \"packageQuantity\": {\n      \"type\": \"QuantityType\",\n      \"unece:QuantityTypeValue\": 25\n    },\n    \"weightUnitNetWeightMeasure\": [\n      {\n        \"type\": \"WeightUnitMeasureType\",\n        \"unece:WeightUnitMeasureTypeValue\": \"19578\",\n        \"unece:WeightUnitMeasureTypeCode\": \"unece:WeightUnitMeasureCode#KGM\"\n      }\n    ],\n    \"utilizedTransportEquipment\": [\n      {\n        \"type\": \"LogisticsTransportEquipment\",\n        \"affixedSeal\": [\n          {\n            \"type\": \"Seal\",\n            \"identifier\": \"TX1138\"\n          }\n        ],\n        \"specifiedTransportMeans\": [\n          {\n            \"identifier\": \"DSW450AE\",\n            \"type\": \"LogisticsTransportMeans\",\n            \"transportMeansTypeCode\": \"unece:TransportMeansTypeCodeList#3103\",\n            \"driverAccompaniedIndicator\": true\n          }\n        ]\n      }\n    ],\n    \"atDepartureTransportMovement\": {\n      \"type\": \"TransportMovement\",\n      \"departureEvent\": [\n        {\n          \"type\": \"TransportEvent\",\n          \"occurrenceLogisticsLocation\": {\n            \"type\": \"LogisticsLocation\",\n            \"identifier\": {\n              \"@type\": \"https://ref.gs1.org/voc/LocationID_Type-UN_LOCODE\",\n              \"@value\": \"NLRTM\"\n            }\n          },\n          \"scheduledOccurrenceDateTime\": \"2026-05-8T19:00:00Z\"\n        }\n      ],\n      \"transportModeCode\": \"unece:TransportModeCodeList#1\",\n      \"carrierParty\": {\n        \"type\": \"TradeParty\",\n        \"name\": \"DFDS\"\n      },\n      \"usedTransportMeans\": {\n        \"identifier\": \"Belgia Seaways\",\n        \"transportMeansTypeCode\": \"unece:TransportMeansTypeCodeList#1512\"\n      }\n    },\n    \"atArrivalTransportMovement\": {\n      \"type\": \"TransportMovement\",\n      \"arrivalEvent\": [\n        {\n          \"type\": \"TransportEvent\",\n          \"occurrenceLogisticsLocation\": {\n            \"type\": \"LogisticsLocation\",\n            \"identifier\": {\n              \"@type\": \"https://ref.gs1.org/voc/LocationID_Type-UN_LOCODE\",\n              \"@value\": \"GBFXT\"\n            }\n          },\n          \"scheduledOccurrenceDateTime\": \"2026-05-09T07:00:00Z\"\n        }\n      ],\n      \"transportModeCode\": \"unece:TransportModeCodeList#1\"\n    }\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/aig?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "A4. Seed AIG consignment 2 (dest NL)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('created (201/200)', () => pm.expect([200,201]).to.include(pm.response.code));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{prov_session_jwt}}"
+							}
+						],
+						"description": "AIG vertex for consignment-2 (destination NL). Used as the contrasting record the constrained GB offer should filter OUT.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": [\n    \"https://schema.twindev.org/aig/\",\n    \"https://schema.twindev.org/common/\"\n  ],\n  \"type\": \"AuditableItemGraphVertex\",\n  \"annotationObject\": {\n    \"@context\": \"https://vocabulary.uncefact.org/unece-context-D23B.jsonld\",\n    \"type\": \"Consignment\",\n    \"identifier\": \"A44-5566\",\n    \"globalId\": \"6KEP051126254X\",\n    \"summaryDescription\": \"Fresh cut flowers\",\n    \"exporterParty\": {\n      \"type\": \"TradeParty\",\n      \"identifier\": {\n        \"@type\": \"https://ref.gs1.org/voc/OrganizationID_Type-CRN\",\n        \"@value\": \"P00011000\"\n      }\n    },\n    \"importerParty\": {\n      \"type\": \"TradeParty\",\n      \"identifier\": {\n        \"@type\": \"https://ref.gs1.org/voc/OrganizationID_Type-NL_KVK_NUMBER\",\n        \"@value\": \"12345678\"\n      }\n    },\n    \"includedConsignmentItem\": [\n      {\n        \"type\": \"ConsignmentItem\",\n        \"exportTypeCode\": \"0603.11\"\n      }\n    ],\n    \"originCountry\": {\n      \"countryId\": \"unece:CountryId#KE\"\n    },\n    \"destinationCountry\": {\n      \"countryId\": \"unece:CountryId#NL\"\n    },\n    \"packageQuantity\": {\n      \"type\": \"QuantityType\",\n      \"unece:QuantityTypeValue\": 25\n    },\n    \"weightUnitNetWeightMeasure\": [\n      {\n        \"type\": \"WeightUnitMeasureType\",\n        \"unece:WeightUnitMeasureTypeValue\": \"345\",\n        \"unece:WeightUnitMeasureTypeCode\": \"unece:WeightUnitMeasureCode#KGM\"\n      }\n    ],\n    \"atDepartureTransportMovement\": {\n      \"type\": \"TransportMovement\",\n      \"departureEvent\": [\n        {\n          \"type\": \"TransportEvent\",\n          \"occurrenceLogisticsLocation\": {\n            \"type\": \"LogisticsLocation\",\n            \"identifier\": {\n              \"@type\": \"https://ref.gs1.org/voc/LocationID_Type-IATA_CODE\",\n              \"@value\": \"NBO\"\n            }\n          },\n          \"scheduledOccurrenceDateTime\": \"2026-05-8T19:00:00Z\"\n        }\n      ],\n      \"transportModeCode\": \"unece:TransportModeCodeList#4\",\n      \"carrierParty\": {\n        \"type\": \"TradeParty\",\n        \"name\": \"KLM\"\n      },\n      \"usedTransportMeans\": {\n        \"identifier\": \"KLM23456\",\n        \"transportMeansTypeCode\": \"unece:TransportMeansTypeCodeList#4000\"\n      }\n    },\n    \"atArrivalTransportMovement\": {\n      \"type\": \"TransportMovement\",\n      \"arrivalEvent\": [\n        {\n          \"type\": \"TransportEvent\",\n          \"occurrenceLogisticsLocation\": {\n            \"type\": \"LogisticsLocation\",\n            \"identifier\": {\n              \"@type\": \"https://ref.gs1.org/voc/LocationID_Type-IATA_CODE\",\n              \"@value\": \"AMS\"\n            }\n          },\n          \"scheduledOccurrenceDateTime\": \"2026-05-09T07:00:00Z\"\n        }\n      ],\n      \"transportModeCode\": \"unece:TransportModeCodeList#4\"\n    }\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/aig?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "A5. Seed AIG consignment 3 (dest GB)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('created (201/200)', () => pm.expect([200,201]).to.include(pm.response.code));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{prov_session_jwt}}"
+							}
+						],
+						"description": "AIG vertex for consignment-3 (destination GB).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": [\n    \"https://schema.twindev.org/aig/\",\n    \"https://schema.twindev.org/common/\"\n  ],\n  \"type\": \"AuditableItemGraphVertex\",\n  \"annotationObject\": {\n    \"@context\": \"https://vocabulary.uncefact.org/unece-context-D23B.jsonld\",\n    \"type\": \"Consignment\",\n    \"identifier\": \"BF456789\",\n    \"globalId\": \"6-BR-123456789000-INV987\",\n    \"summaryDescription\": \"Beef\",\n    \"exporterParty\": {\n      \"type\": \"TradeParty\",\n      \"identifier\": {\n        \"@type\": \"https://ref.gs1.org/voc/OrganizationID_Type-LEI\",\n        \"@value\": \"AWUPKR9MPOU8FGXBT394\"\n      }\n    },\n    \"importerParty\": {\n      \"type\": \"TradeParty\",\n      \"identifier\": {\n        \"@type\": \"https://ref.gs1.org/voc/OrganizationID_Type-EORI\",\n        \"@value\": \"GB362012792073\"\n      }\n    },\n    \"includedConsignmentItem\": [\n      {\n        \"type\": \"ConsignmentItem\",\n        \"exportTypeCode\": \"0201\"\n      }\n    ],\n    \"originCountry\": {\n      \"countryId\": \"unece:CountryId#BR\"\n    },\n    \"destinationCountry\": {\n      \"countryId\": \"unece:CountryId#GB\"\n    },\n    \"packageQuantity\": {\n      \"type\": \"QuantityType\",\n      \"unece:QuantityTypeValue\": 10\n    },\n    \"weightUnitNetWeightMeasure\": [\n      {\n        \"type\": \"WeightUnitMeasureType\",\n        \"unece:WeightUnitMeasureTypeValue\": \"30987\",\n        \"unece:WeightUnitMeasureTypeCode\": \"unece:WeightUnitMeasureCode#KGM\"\n      }\n    ],\n    \"utilizedTransportEquipment\": [\n      {\n        \"transportEquipmentCategoryCode\": \"unece:TransportEquipmentCategoryCodeList#AM\",\n        \"identifier\": \"MSKU0214857\",\n        \"type\": \"LogisticsTransportEquipment\",\n        \"affixedSeal\": [\n          {\n            \"type\": \"Seal\",\n            \"identifier\": \"TX1138\"\n          }\n        ]\n      }\n    ],\n    \"atDepartureTransportMovement\": {\n      \"type\": \"TransportMovement\",\n      \"departureEvent\": [\n        {\n          \"type\": \"TransportEvent\",\n          \"occurrenceLogisticsLocation\": {\n            \"type\": \"LogisticsLocation\",\n            \"identifier\": {\n              \"@type\": \"https://ref.gs1.org/voc/LocationID_Type-UN_LOCODE\",\n              \"@value\": \"BRSSZ\"\n            }\n          },\n          \"scheduledOccurrenceDateTime\": \"2026-05-8T19:00:00Z\"\n        }\n      ],\n      \"transportModeCode\": \"unece:TransportModeCodeList#1\",\n      \"carrierParty\": {\n        \"type\": \"TradeParty\",\n        \"name\": \"Maersk\"\n      },\n      \"usedTransportMeans\": {\n        \"identifier\": \"Maersk Frio\",\n        \"transportMeansTypeCode\": \"unece:TransportMeansTypeCodeList#1506\"\n      }\n    },\n    \"atArrivalTransportMovement\": {\n      \"type\": \"TransportMovement\",\n      \"arrivalEvent\": [\n        {\n          \"type\": \"TransportEvent\",\n          \"occurrenceLogisticsLocation\": {\n            \"type\": \"LogisticsLocation\",\n            \"identifier\": {\n              \"@type\": \"https://ref.gs1.org/voc/LocationID_Type-UN_LOCODE\",\n              \"@value\": \"GBSOU\"\n            }\n          },\n          \"scheduledOccurrenceDateTime\": \"2026-05-15T07:00:00Z\"\n        }\n      ],\n      \"transportModeCode\": \"unece:TransportModeCodeList#1\"\n    }\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{prov_base}}/aig?organization={{prov_did}}"
+					}
+				},
+				{
+					"name": "A6. Create ODRL Offer (constrained, per-item GB filter)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('created or replaced', () => pm.expect([200,201,204,409]).to.include(pm.response.code));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{prov_session_jwt}}"
+							}
+						],
+						"description": "Seeds the constrained offer in the Policy Administration Point. The permission target is an ODRL AssetCollection with a twin:jsonPath wildcard source ($.itemList.itemListElement[*]) plus a refinement (destinationCountry.countryId eq unece:CountryId#GB), so the PEP filters the consignment array per element. For an unfiltered offer, swap the body for the 'simple' variant (target AssetCollection twin:jsonPathExpression '$'). assigner MUST be the live provider org DID (prov_did).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"@context\": \"http://www.w3.org/ns/odrl.jsonld\",\n  \"@type\": \"Offer\",\n  \"@id\": \"{{offer_id}}\",\n  \"uid\": \"{{offer_id}}\",\n  \"target\": \"{{dataset_id}}\",\n  \"assigner\": \"{{prov_did}}\",\n  \"permission\": [\n    {\n      \"action\": \"read\",\n      \"target\": {\n        \"@type\": \"AssetCollection\",\n        \"source\": \"twin:jsonPath\",\n        \"twin:jsonPathExpression\": \"$.itemList.itemListElement[*]\",\n        \"refinement\": {\n          \"leftOperand\": \"twin:jsonPath\",\n          \"twin:jsonPathExpression\": \"$.itemList.itemListElement[*].destinationCountry.countryId\",\n          \"operator\": \"eq\",\n          \"rightOperand\": \"unece:CountryId#GB\"\n        }\n      }\n    }\n  ]\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -125,14 +239,14 @@
 					}
 				},
 				{
-					"name": "A4. Register Dataset",
+					"name": "A7. Register Dataset (with hasPolicy)",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"type": "text/javascript",
 								"exec": [
-									"pm.test('created or already exists', () => pm.expect([201,204,409]).to.include(pm.response.code));"
+									"pm.test('created or already exists', () => pm.expect([200,201,204,409]).to.include(pm.response.code));"
 								]
 							}
 						}
@@ -149,10 +263,10 @@
 								"value": "Bearer {{prov_session_jwt}}"
 							}
 						],
-						"description": "Publishes the dataset into the federated catalogue, mapped to the dataspace-example-app (app_id). dcat:endpointURL is the provider's docker-network address (prov_net) so the consumer container can reach it; the catalogue bakes ?organization=<prov_did> onto it at publish time. Re-run returns 409.",
+						"description": "Publishes the dataset into the catalogue mapped to the dataspace-example-app (app_id), embedding the constrained Offer as hasPolicy. distribution.format=HttpData-PULL and accessService.endpointURL is the provider data-plane address on the docker network (prov_net). Mirrors register-dataset.sh constrained.",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"appId\": \"{{app_id}}\",\n  \"dataset\": {\n    \"@context\": {\n      \"dcat\": \"http://www.w3.org/ns/dcat#\",\n      \"dcterms\": \"http://purl.org/dc/terms/\",\n      \"odrl\": \"http://www.w3.org/ns/odrl/2/\"\n    },\n    \"@type\": \"dcat:Dataset\",\n    \"@id\": \"{{dataset_id}}\",\n    \"dcterms:title\": \"DPI Consignment Dataset\",\n    \"dcterms:type\": \"{{dataset_type}}\",\n    \"dcterms:publisher\": \"{{prov_did}}\",\n    \"dcat:distribution\": {\n      \"@type\": \"dcat:Distribution\",\n      \"dcterms:format\": \"application/json\",\n      \"dcat:accessService\": {\n        \"@id\": \"{{prov_net}}/rights-management\",\n        \"@type\": \"dcat:DataService\",\n        \"dcat:endpointURL\": \"{{prov_net}}/\"\n      }\n    },\n    \"odrl:hasPolicy\": {\n      \"@context\": \"http://www.w3.org/ns/odrl.jsonld\",\n      \"@type\": \"Offer\",\n      \"@id\": \"{{offer_id}}\",\n      \"assigner\": \"{{prov_did}}\",\n      \"target\": \"{{dataset_id}}\",\n      \"action\": \"read\",\n      \"permission\": [\n        {\n          \"action\": \"read\",\n          \"target\": {\n            \"@type\": \"twin:jsonPath\",\n            \"twin:jsonPathExpression\": \"$\"\n          }\n        }\n      ]\n    }\n  }\n}",
+							"raw": "{\n  \"appId\": \"{{app_id}}\",\n  \"dataset\": {\n    \"@context\": [\n      \"https://w3id.org/dspace/2025/1/context.jsonld\",\n      {\n        \"dcterms\": \"http://purl.org/dc/terms/\"\n      }\n    ],\n    \"@id\": \"{{dataset_id}}\",\n    \"@type\": \"Dataset\",\n    \"dcterms:type\": \"{{dataset_type}}\",\n    \"dcterms:publisher\": \"{{prov_did}}\",\n    \"hasPolicy\": [\n      {\n        \"@type\": \"Offer\",\n        \"@id\": \"{{offer_id}}\",\n        \"uid\": \"{{offer_id}}\",\n        \"target\": \"{{dataset_id}}\",\n        \"assigner\": \"{{prov_did}}\",\n        \"permission\": [\n          {\n            \"action\": \"read\",\n            \"target\": {\n              \"@type\": \"AssetCollection\",\n              \"source\": \"twin:jsonPath\",\n              \"twin:jsonPathExpression\": \"$.itemList.itemListElement[*]\",\n              \"refinement\": {\n                \"leftOperand\": \"twin:jsonPath\",\n                \"twin:jsonPathExpression\": \"$.itemList.itemListElement[*].destinationCountry.countryId\",\n                \"operator\": \"eq\",\n                \"rightOperand\": \"unece:CountryId#GB\"\n              }\n            }\n          }\n        ]\n      }\n    ],\n    \"distribution\": {\n      \"@id\": \"https://twin.example.org/distribution-1\",\n      \"@type\": \"Distribution\",\n      \"accessService\": {\n        \"@id\": \"urn:uuid:4aa2dcc8-4d2d-569e-d634-8394a8834d77\",\n        \"@type\": \"DataService\",\n        \"endpointURL\": \"{{prov_net}}\"\n      },\n      \"format\": \"HttpData-PULL\"\n    }\n  }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -347,9 +461,15 @@
 								"exec": [
 									"pm.test('status 200', () => pm.response.to.have.status(200));",
 									"const j = pm.response.json();",
-									"const items = ((j.itemList || {}).itemListElement) || [];",
-									"pm.test('at least one consignment returned', () => pm.expect(items.length).to.be.at.least(1));",
-									"console.log('pulled', items.length, 'consignment(s)');"
+									"// result is { itemListElement: [...] } (older builds wrapped it in itemList). Filtered-out",
+									"// rows come back as null holes (per-item PEP enforcement does not compact the array).",
+									"const items = (j.itemList && j.itemList.itemListElement) || j.itemListElement || [];",
+									"const real = items.filter(x => x);",
+									"pm.test('at least one consignment returned', () => pm.expect(real.length).to.be.at.least(1));",
+									"const dests = real.map(x => (x.destinationCountry||{}).countryId);",
+									"console.log('pulled', real.length, 'consignment(s); destinations:', JSON.stringify(dests), '(nulls in array:', items.length-real.length, ')');",
+									"// With the constrained GB offer + the seeded 2xGB/1xNL set, expect only GB destinations.",
+									"pm.test('constrained offer: only GB consignments', () => pm.expect(dests.every(d => d === 'unece:CountryId#GB')).to.be.true);"
 								]
 							}
 						}
@@ -366,7 +486,7 @@
 								"value": "access_token={{cons_session_jwt}}"
 							}
 						],
-						"description": "Single-call transfer + pull driven by the consumer-client extension. The provider runs DPI_NODE_DATASPACE_AUTO_START_TRANSFERS=true, so this one call drives request -> provider auto-start -> start callback -> consumer pull and returns the data. Authorized by the consumer session cookie. Returns { itemList: { @context, type: 'ItemList', itemListElement: [...] } }; a successful pull returns 2 consignments. NOTE: the provider's auto-start mints a verifiable credential on IOTA testnet (runProviderStart), which is occasionally flaky (iotaIdentityConnector.createVerifiableCredentialFailed). If query-data times out (it can hang until a stalled-transfer cleanup fires, minutes later), simply retry — it is environmental testnet flakiness, not a config error.",
+						"description": "Single-call transfer + pull via the consumer-client (provider auto-starts the transfer). With the constrained GB offer and the seeded 2xGB/1xNL consignments, the PEP filters per element: the NL consignment is removed (left as a null hole; the array is not compacted), so only the 2 GB consignments are returned. Swap to the simple offer (A6) to receive all 3. NOTE: provider auto-start mints a VC on IOTA testnet and is occasionally flaky; if query-data times out, retry.",
 						"body": {
 							"mode": "raw",
 							"raw": "{\n  \"agreementId\": \"{{agreement_id}}\",\n  \"entityType\": \"{{dataset_type}}\"\n}",
