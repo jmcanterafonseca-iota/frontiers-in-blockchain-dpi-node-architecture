@@ -27,7 +27,7 @@ services:
       - ./init:/docker-entrypoint-initdb.d
 
   dpi-node-provider:
-    image: twinfoundation/twin-node:0.0.3-next.67
+    image: twinfoundation/twin-node:0.9.1-next.2
     container_name: dpi_node_provider
     hostname: dpi.provider
     depends_on:
@@ -48,7 +48,7 @@ services:
       sh -c 'node src/index.js --env-prefix=DPI_NODE_'
 
   dpi-node-consumer:
-    image: twinfoundation/twin-node:0.0.3-next.67
+    image: twinfoundation/twin-node:0.9.1-next.2
     container_name: dpi_node_consumer
     hostname: dpi.consumer
     depends_on:

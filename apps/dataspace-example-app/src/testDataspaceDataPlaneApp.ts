@@ -7,7 +7,7 @@ import {
 	type IAuditableItemGraphVertex
 } from "@twin.org/auditable-item-graph-models";
 import { ContextIdHelper, ContextIdKeys, ContextIdStore } from "@twin.org/context";
-import { ArrayHelper, ComponentFactory, Guards, Is, ObjectHelper } from "@twin.org/core";
+import { ArrayHelper, ComponentFactory, Guards, Is } from "@twin.org/core";
 import { DataTypeHandlerFactory } from "@twin.org/data-core";
 import type { IJsonLdDocument, IJsonLdNodeObject } from "@twin.org/data-json-ld";
 import {
@@ -18,10 +18,9 @@ import {
 	type IDataspaceApp,
 	type IProcessingGroupOptions
 } from "@twin.org/dataspace-models";
-import { ComparisonOperator, type IComparator } from "@twin.org/entity";
+import { ComparisonOperator, type IComparator, LogicalOperator } from "@twin.org/entity";
 import { LogLevel, type ILoggingComponent } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import { SchemaOrgContexts, SchemaOrgTypes } from "@twin.org/standards-schema-org";
 import { UneceContexts, UneceTypes } from "@twin.org/standards-unece";
 import type { IActivityStreamsActivity } from "@twin.org/standards-w3c-activity-streams";
 import type { ITestAppConstructorOptions } from "./ITestAppConstructorOptions.js";
@@ -208,18 +207,16 @@ export class TestDataspaceDataPlaneApp implements IDataspaceApp {
 						});
 					}
 
-					const items = await this._auditableItemGraph.query(undefined, conditions);
-					const data = {
-						"@context": SchemaOrgContexts.Context,
-						type: SchemaOrgTypes.ItemList
-					};
+					const items = await this._auditableItemGraph.query(undefined, {
+						conditions,
+						logicalOperator: LogicalOperator.Or
+					});
 					const itemListElement: IJsonLdNodeObject[] = [];
 					for (const item of items.entries.itemListElement) {
 						if (item.annotationObject?.type === UneceTypes.Consignment) {
 							itemListElement.push(item.annotationObject);
 						}
 					}
-					ObjectHelper.propertySet(data, "itemListElement", itemListElement);
 					return { data: itemListElement };
 				}
 
@@ -234,16 +231,14 @@ export class TestDataspaceDataPlaneApp implements IDataspaceApp {
 						}
 					];
 
-					const items = await this._auditableItemGraph.query(undefined, conditions);
-					const data = {
-						"@context": SchemaOrgContexts.Context,
-						type: SchemaOrgTypes.ItemList
-					};
+					const items = await this._auditableItemGraph.query(undefined, {
+						conditions,
+						logicalOperator: LogicalOperator.Or
+					});
 					const itemListElement: IJsonLdNodeObject[] = [];
 					for (const item of items.entries.itemListElement) {
 						itemListElement.push(item.annotationObject as IJsonLdNodeObject);
 					}
-					ObjectHelper.propertySet(data, "itemListElement", itemListElement);
 					return { data: itemListElement };
 				}
 
