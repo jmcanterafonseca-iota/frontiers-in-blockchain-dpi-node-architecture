@@ -1,13 +1,13 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $(basename "$0") <negotiation-id> <entity-type> [entity-id] [email password]" >&2
+    echo "Usage: $(basename "$0") <agreement-id> <entity-type> [entity-id] [email password]" >&2
     echo "" >&2
-    echo "  negotiation-id  Agreement id to retrieve data for (e.g. urn:policy:019ef...)" >&2
-    echo "  entity-type     Entity type to query (e.g. https://vocabulary.uncefact.org/Consignment)" >&2
-    echo "  entity-id       Optional entity id to filter the query (e.g. 6KEP051126254X)" >&2
-    echo "  email           Login email (default: from consumer-authn.json)" >&2
-    echo "  password        Login password (default: from consumer-authn.json)" >&2
+    echo "  agreement-id  Agreement id to retrieve data for (e.g. urn:policy:019ef...)" >&2
+    echo "  entity-type   Entity type to query (e.g. https://vocabulary.uncefact.org/Consignment)" >&2
+    echo "  entity-id     Optional entity id to filter the query (e.g. 6KEP051126254X)" >&2
+    echo "  email         Login email (default: from consumer-authn.json)" >&2
+    echo "  password      Login password (default: from consumer-authn.json)" >&2
     exit 1
 }
 
@@ -15,17 +15,17 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     usage
 fi
 
-# Mandatory: negotiation-id, entity-type. Optional: entity-id and/or an email+password pair.
+# Mandatory: agreement-id, entity-type. Optional: entity-id and/or an email+password pair.
 # Accepted argument counts:
-#   2 -> negotiation-id entity-type
-#   3 -> negotiation-id entity-type entity-id
-#   4 -> negotiation-id entity-type email password
-#   5 -> negotiation-id entity-type entity-id email password
+#   2 -> agreement-id entity-type
+#   3 -> agreement-id entity-type entity-id
+#   4 -> agreement-id entity-type email password
+#   5 -> agreement-id entity-type entity-id email password
 if [ "$#" -lt 2 ] || [ "$#" -gt 5 ]; then
     usage
 fi
 
-NEGOTIATION_ID="$1"
+AGREEMENT_ID="$1"
 ENTITY_TYPE="$2"
 ENTITY_ID=""
 EMAIL=""
@@ -88,14 +88,14 @@ echo ""
 
 # Build the query body. entityId is only included when an entity id was supplied.
 if [ -n "$ENTITY_ID" ]; then
-    payload=$(jq -n --arg et "$ENTITY_TYPE" --arg aid "$NEGOTIATION_ID" --arg eid "$ENTITY_ID" \
+    payload=$(jq -n --arg et "$ENTITY_TYPE" --arg aid "$AGREEMENT_ID" --arg eid "$ENTITY_ID" \
         '{entityType: $et, agreementId: $aid, entityId: [$eid]}')
 else
-    payload=$(jq -n --arg et "$ENTITY_TYPE" --arg aid "$NEGOTIATION_ID" \
+    payload=$(jq -n --arg et "$ENTITY_TYPE" --arg aid "$AGREEMENT_ID" \
         '{entityType: $et, agreementId: $aid}')
 fi
 
-echo -e "${DIM}Retrieving data for negotiation ${RESET}${YELLOW}$NEGOTIATION_ID${RESET}${DIM}...${RESET}"
+echo -e "${DIM}Retrieving data for agreement ${RESET}${YELLOW}$AGREEMENT_ID${RESET}${DIM}...${RESET}"
 response=$(curl --silent "$BASE_URL/consumer-client/query-data" \
     --header 'Content-Type: application/json' \
     --header "Cookie: $cookie" \
@@ -115,6 +115,7 @@ fi
 # Print each one's globalId together with the origin and destination country.
 rows=$(echo "$body" | jq -r '
     .itemListElement[]
+    | select(. != null)
     | [.globalId, (.originCountry.countryId // "-"), (.destinationCountry.countryId // "-")]
     | @tsv' 2>/dev/null)
 
